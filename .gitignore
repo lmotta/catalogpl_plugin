@@ -1,0 +1,8 @@
+# Ignore
+.directory
+*.pyc
+*.zip
+*.sh
+# Not Ignore
+!create_zip_plugin.sh
+
