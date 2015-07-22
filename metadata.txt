@@ -28,6 +28,10 @@ changelog=0.6
   - Start of plugin
 
 tags=catalog,raster, satellite, Planet Labs
+homepage=https://github.com/lmotta/catalogpl_plugin
+tracker=http://hub.qgis.org/projects/catalogpl
+repository=https://github.com/lmotta/catalogpl_plugin
 icon=catalogpl.png
 experimental=True
 deprecated=False
+
