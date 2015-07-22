@@ -1,19 +1,21 @@
 [general]
-name=Catalog PlanetLabs
-description=Create image catalog from API PlanetLab that intersect with the map area.
-about=This plugin is a product from program Planet Explorers(https://www.planet.com/explorers/)
-  It is not a official Planet Labs's plugin.
-  You need the Planet Labs's KEY for use this plugin.  
-  This plugin will be create polygon layer (Catalog of images) from extent map using API PlanetLabs.
-  With this plugin, you can: download full images, visual or analytic, thumbnails images and add TMS images.
-  See presentation in [Planet Explorers Program]
-version=0.5
+name=Catalog Planet Labs
+description=This plugin lets you get images from the Planet Labs API.
+about=This plugin lets you get images from the Planet Labs API, by performing searches for images that intersect with the extent of the map window.
+  It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
+  You need a key from Planet Labs in order to use this plugin.
+  This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
+  With this plugin, you can download full images, visual or analytic, thumbnail images or add TMS images.
+  See presentation in http://pt.slideshare.net/LuizMotta3/planetlabs-explorer-qgisplugin
+version=0.6
 qgisMinimumVersion=2.8
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
 
-changelog=0.5
+changelog=0.6
+  - Add context menu image full and TMS
+  0.5
   - Update the checkLayerLegend(), remove clean register
   0.4
   - Add cancel for TMS for download

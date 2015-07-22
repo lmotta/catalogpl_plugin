@@ -32,7 +32,9 @@ from qgis.core import ( QgsApplication, QgsProject, QgsMapLayerRegistry,
 from qgis.gui  import ( QgsMessageBar, QgsRubberBand )
 
 from apiqtpl import API_PlanetLabs
-from legendlayerpl import ( DialogImageSettingPL, LegendLayers, LegendTMS )
+from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
+from legendlayer import ( LegendRaster, LegendTMS )
+
 from managerloginkey import ManagerLoginKey
 
 class MessageBarProgressDownload(QObject):
@@ -109,15 +111,12 @@ class WorkerSaveTMS(QObject):
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
-  def __init__(self ):
+  def __init__(self, legendTMS ):
     super(WorkerSaveTMS, self).__init__()
-    self.legendTMS = LegendTMS( 'Planet Labs TMS')
+    self.legendTMS = legendTMS
     self.isKilled = None # set in run
     self.path = self.ctTMS = self.funcStep = self.iterFeat = None # setting
     self.ltgRoot = self.ltgCatalog = None # setting
-
-  def __del__(self):
-    del self.legendTMS
 
   def setting(self, path, ctTMS, iterFeat, ltgRoot, ltgCatalog, msgDownload):
    self.path = path
@@ -231,14 +230,14 @@ class CatalogPL(QObject):
   enableRun = pyqtSignal( bool )
   
   def __init__(self, iface, icon):
-    def setLegendLayers():
+    def setLegendCatalogLayer():
       slots = { 
          'setting': self.settingImages,
          'tms': self.downloadTMS,
          'images': self.downloadImages,
          'thumbnails': self.downloadThumbnails
       }
-      self.legendLayers = LegendLayers( slots )
+      self.legendCatalogLayer = LegendCatalogLayer( slots )
       self.downloadSettings = DialogImageSettingPL.getDownloadSettings()
       date2 = QDate.currentDate()
       date1 = date2.addMonths( -1 )
@@ -253,6 +252,8 @@ class CatalogPL(QObject):
 
     self.apiPL = API_PlanetLabs()
     self.mngLogin = ManagerLoginKey( "catalogpl_plugin" )
+    self.legendRaster = LegendRaster( 'Catalog Planet Labs' )
+    self.legendTMS = LegendTMS( 'Catalog Planet Labs' )
     self.thread = self.worker = None # initThread
     self.mbpd = None # Need for worker it is be class attribute
     self.isHostLive = False
@@ -262,22 +263,24 @@ class CatalogPL(QObject):
     self.hasCriticalMessage = None
     self.url_scenes = self.scenes = self.process_scenes = None 
     self.pixmap = self.messagePL = self.isOkPL = None
-    self.legendLayers = self.downloadSettings = None
+    self.legendCatalogLayer = self.downloadSettings = None
     self.imageDownload = self.totalReady = None
     self.ltgCatalog = None
 
-    setLegendLayers()
+    setLegendCatalogLayer()
     self._connect()
     self._initThread()
 
   def __del__(self):
     self._connect( False )
     self._finishThread()
+    del self.legendRaster
+    del self.legendTMS
 
   def _initThread(self):
     self.thread = QThread( self )
     self.thread.setObjectName( "QGIS_Plugin_Catalog_PlanetLabs" )
-    self.worker = WorkerSaveTMS()
+    self.worker = WorkerSaveTMS( self.legendTMS )
     self.worker.moveToThread( self.thread )
     self.thread.started.connect( self.worker.run )
 
@@ -540,7 +543,7 @@ class CatalogPL(QObject):
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, typeMessage, 4 )
 
         if not self.layerTree is None:
-          self.legendLayers.enabledDownload( not self.mbpd.isCancel )
+          self.legendCatalogLayer.enabledDownload( not self.mbpd.isCancel )
 
       date1 = self.downloadSettings['date1']
       date2 = self.downloadSettings['date2']
@@ -589,16 +592,16 @@ class CatalogPL(QObject):
       if self.layerTree is None:   
         return
 
-      # self.downloadSettings setting by __init__.setLegendLayers()
+      # self.downloadSettings setting by __init__.setLegendCatalogLayer()
       if not self.downloadSettings['isOk']:
         msg = "Please setting the Planet Labs Catalog layer"
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
-        self.legendLayers.enabledDownload( False )
+        self.legendCatalogLayer.enabledDownload( False )
         return
       if not QDir( self.downloadSettings[ 'path' ] ).exists() :
         msg = "Register directory '%s' does not exist! Please setting the Planet Labs Catalog layer" % self.downloadSettings['path']
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
-        self.legendLayers.enabledDownload( False )
+        self.legendCatalogLayer.enabledDownload( False )
         return
 
     self.enableRun.emit( False )
@@ -606,11 +609,11 @@ class CatalogPL(QObject):
     # Setting Layer
     if self.layerTree is None: # Use this because slot layerWillBeRemoved 
       createLayer()
-      self.legendLayers.setLayer( self.layer )
+      self.legendCatalogLayer.setLayer( self.layer )
     else:
       self.layer.removeSelection() # Before can be had selected
       removeFeatures()
-      self.legendLayers.enabledDownload( False )
+      self.legendCatalogLayer.enabledDownload( False )
 
     self.hasCriticalMessage = False
 
@@ -623,7 +626,7 @@ class CatalogPL(QObject):
     if not self.layerTree is None and id == self.layer.id():
       self.apiPL.kill()
       self.worker.kill()
-      self.legendLayers.clean()
+      self.legendCatalogLayer.clean()
       self.layerTree = None
 
   @pyqtSlot()
@@ -632,7 +635,7 @@ class CatalogPL(QObject):
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
     if dlg.exec_() == QDialog.Accepted:
       self.downloadSettings = dlg.getData()
-      self.legendLayers.enabledDownload()
+      self.legendCatalogLayer.enabledDownload()
 
   @pyqtSlot()
   def downloadTMS(self):
@@ -651,7 +654,7 @@ class CatalogPL(QObject):
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
         return
   
-      self.legendLayers.enabledDownload()
+      self.legendCatalogLayer.enabledDownload()
       self._endDownload( numError, msgDownload )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
@@ -697,6 +700,7 @@ class CatalogPL(QObject):
         layer = QgsRasterLayer( image, os.path.split( image )[-1] )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer)
+        self.legendRaster.setLayer( layer )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog(ltgRoot)
@@ -716,7 +720,7 @@ class CatalogPL(QObject):
     loop = QEventLoop()
 
     self.enableRun.emit( False )
-    self.legendLayers.enabledDownload( False )
+    self.legendCatalogLayer.enabledDownload( False )
     numError = 0
     for feat in iter:
       image = os.path.join( path, u"%s_%s.tif" % ( feat['id'], suffix ) )
@@ -741,7 +745,7 @@ class CatalogPL(QObject):
       self.msgBar.popWidget()
       return
 
-    self.legendLayers.enabledDownload()
+    self.legendCatalogLayer.enabledDownload()
     step -= 1
     msg = msgDownload.replace( str( total ), str ( step  ) ) 
     self._endDownload( numError, msg )
@@ -770,7 +774,7 @@ class CatalogPL(QObject):
     loop = QEventLoop()
 
     self.enableRun.emit( False )
-    self.legendLayers.enabledDownload( False )
+    self.legendCatalogLayer.enabledDownload( False )
     commitFeats = []
     for feat in iter:
       thumbnail = os.path.join( path, u"%s_%s.png" % ( feat['id'], suffix ) )
@@ -799,7 +803,7 @@ class CatalogPL(QObject):
       self.msgBar.popWidget()
       return
     else:
-      self.legendLayers.enabledDownload()
+      self.legendCatalogLayer.enabledDownload()
 
     step -= 1
     numError = 0
