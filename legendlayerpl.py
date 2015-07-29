@@ -250,6 +250,12 @@ class LegendCatalogLayer():
     def addActionLegendLayer(parentMenu):
       self.legendLayer = [
         {
+          'menu': u"Clear key",
+          'id': "idKey",
+          'slot': self.slots['clearKey'],
+          'action': None
+        },
+        {
           'menu': u"Setting downloads",
           'id': "idSetting",
           'slot': self.slots['setting'],
@@ -287,7 +293,7 @@ class LegendCatalogLayer():
     addActionLegendLayer( u"Planet Labs" )
     for item in self.legendLayer:
       self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
-      if item['id'].find("idDownload") == -1:
+      if item['id'].find("idSetting") != -1:
         text = "%s (%d total)..." % ( item['menu'], self.layer.featureCount() )
         item['action'].setText( text )
 
@@ -298,9 +304,14 @@ class LegendCatalogLayer():
     for item in self.legendLayer:
       if item['id'].find("idDownload") != -1:
         item['action'].setEnabled( enabled )
-      else:
+      elif item['id'].find("idSetting") != -1:
         text = "%s%s" % ( item['menu'], countDownload )
         item['action'].setText( text )
+
+  def enabledClearKey (self, enabled=True):
+    for item in self.legendLayer:
+      if item['id'].find("idKey") != -1:
+        item['action'].setEnabled( enabled )
 
   @pyqtSlot()
   def selectionChanged(self):
@@ -308,7 +319,7 @@ class LegendCatalogLayer():
     totFeats = self.layer.featureCount()
     countDownload = " (%d selected)..." % selFeats if selFeats > 0 else " (%d total)..." % totFeats
     for item in self.legendLayer:
-      if item['id'].find("idDownload") == -1:
+      if item['id'].find("idSetting") != -1:
         text = "%s%s" % ( item['menu'], countDownload )
         item['action'].setText( text )
         break

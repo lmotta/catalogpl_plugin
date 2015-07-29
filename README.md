@@ -6,15 +6,16 @@
 
 # Catalog Planet Lab Plugin QGIS
 
-This plugin lets you get images from the Planet Labs API, by performing searches for images that intersect with the extent of the map window.
-It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
-With this plugin, you can download full images, visual or analytic, thumbnail images or add TMS images
-See presentation in http://pt.slideshare.net/LuizMotta3/planetlabs-explorer-qgisplugin
+Create catalog from API PlanetLab that intersect with the map area.
+This plugin is a product from program Planet Explorers(https://www.planet.com/explorers/).
+It is not a official Planet Labs's plugin.
 
 ## Author
 Luiz Motta
 
 ## Changelog
+- 2015-7-28
+Add context menu remove key
 - 2015-07-15
 Add context menu image full and TMS
 - 2015-07-12

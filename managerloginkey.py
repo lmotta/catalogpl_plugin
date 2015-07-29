@@ -116,7 +116,6 @@ class ManagerLoginKey(QObject):
     s = QSettings()
     return s.value( self.localSettingKey, None )
   
-  def dialogRemoveKey(self, parent, title, message):
-    QMessageBox.information ( parent, title, message, QMessageBox.Ok)
+  def removeKey(self):
     s = QSettings()
     s.remove( self.localSettingKey )

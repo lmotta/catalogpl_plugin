@@ -23,7 +23,7 @@ import os
 
 from PyQt4.QtCore import ( Qt, QObject, QDate, QFile, QDir, QIODevice, pyqtSignal,
                            pyqtSlot, QEventLoop, QThread, QRect )
-from PyQt4.QtGui  import ( QDialog, QLabel, QToolButton, QColor, QProgressBar )
+from PyQt4.QtGui  import ( QDialog, QMessageBox, QLabel, QToolButton, QColor, QProgressBar )
 
 import qgis
 from qgis.core import ( QgsApplication, QgsProject, QgsMapLayerRegistry,
@@ -232,6 +232,7 @@ class CatalogPL(QObject):
   def __init__(self, iface, icon):
     def setLegendCatalogLayer():
       slots = { 
+         'clearKey': self.clearKey,
          'setting': self.settingImages,
          'tms': self.downloadTMS,
          'images': self.downloadImages,
@@ -367,12 +368,6 @@ class CatalogPL(QObject):
       # Accept -> set Key in API_PlanetLabs
       self.mngLogin.dialogLogin( dataDlg, dataMsgBox, setResult )
 
-    def dialogRemoveKey():
-      parent = self.mainWindow
-      title = "Planet Labs Register Key"
-      msg = "Your registered Key not is valid. It will be removed in QGis setting! Please enter a new key."
-      self.mngLogin.dialogRemoveKey( parent, title, msg )
-
     def setFinished(response):
       self.isOkPL = response[ 'isOk' ]
       loop.quit()
@@ -391,7 +386,9 @@ class CatalogPL(QObject):
     loop.exec_()
     self.msgBar.popWidget()
     if not self.isOkPL :
-      dialogRemoveKey()
+      msg = "Your registered Key not is valid. It will be removed in QGis setting! Please enter a new key."
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 ) 
+      self.mngLogin.removeKey()
     self.hasRegisterKey = self.isOkPL
     self.enableRun.emit( True )
 
@@ -628,6 +625,27 @@ class CatalogPL(QObject):
       self.worker.kill()
       self.legendCatalogLayer.clean()
       self.layerTree = None
+
+  @pyqtSlot()
+  def clearKey(self):
+    def dialogQuestion():
+      title = "Planet Labs"
+      msg = "Are you sure want clear the register key?"
+      msgBox = QMessageBox( QMessageBox.Question, title, msg, QMessageBox.Yes | QMessageBox.No,  self.mainWindow )
+      msgBox.setDefaultButton( QMessageBox.No )
+      return msgBox.exec_()
+
+    if self.mngLogin.getKeySetting() is None:
+      msg = "Already cleared the register key. Next run QGIS will need enter the key."
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO, 4 )
+      self.legendCatalogLayer.enabledClearKey( False )
+      return
+    
+    if QMessageBox.Yes == dialogQuestion():
+      self.mngLogin.removeKey()
+      msg = "Cleared the register key. Next run QGIS will need enter the key."
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO, 4 )
+      self.legendCatalogLayer.enabledClearKey( False )
 
   @pyqtSlot()
   def settingImages(self):
