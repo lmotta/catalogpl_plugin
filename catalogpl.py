@@ -317,7 +317,7 @@ class CatalogPL(QObject):
     self.msgBar.popWidget()
     if not self.mbpd.isCancel and numError > 0:
       msg2 = "Has error in download (total = %d)" % numError
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg2, QgsMessageBar.CRITICAL, 8 )
       return
 
     msg2 = "Canceled %s" % msg if self.mbpd.isCancel else "Finished %s" % msg 
@@ -755,7 +755,10 @@ class CatalogPL(QObject):
         loop.exec_()
         if self.totalReady is None:
           numError += 1
-      addImage()
+        else:
+          addImage()
+      else:
+        addImage()
       step += 1
 
     self.enableRun.emit( True )
