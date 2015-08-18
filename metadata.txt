@@ -7,7 +7,7 @@ about=This plugin lets you get images from the Planet Labs API, by performing se
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
   With this plugin, you can download full images, visual or analytic, thumbnail images or add TMS images.
   See presentation in http://pt.slideshare.net/LuizMotta3/planetlabs-explorer-qgisplugin
-version=0.7
+version=0.8
 qgisMinimumVersion=2.8
 category=Raster
 author=Luiz Motta
