@@ -12,7 +12,9 @@ qgisMinimumVersion=2.8
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
-changelog=0.7
+changelog=0.8
+  - Fixed message when error download and add message log for errors
+   0.7
   - Add context menu remove key
   0.6
   - Add context menu image full and TMS
