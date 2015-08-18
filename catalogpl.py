@@ -28,7 +28,8 @@ from PyQt4.QtGui  import ( QDialog, QMessageBox, QLabel, QToolButton, QColor, QP
 import qgis
 from qgis.core import ( QgsApplication, QgsProject, QgsMapLayerRegistry,
                         QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsGeometry, QgsPoint,
-                        QgsCoordinateTransform, QgsCoordinateReferenceSystem )
+                        QgsCoordinateTransform, QgsCoordinateReferenceSystem,
+                        QgsMessageLog )
 from qgis.gui  import ( QgsMessageBar, QgsRubberBand )
 
 from apiqtpl import API_PlanetLabs
@@ -248,6 +249,7 @@ class CatalogPL(QObject):
     super(CatalogPL, self).__init__()
     self.canvas = iface.mapCanvas()
     self.msgBar = iface.messageBar()
+    self.logMessage = QgsMessageLog.instance().logMessage
     self.icon = icon
     self.mainWindow = iface.mainWindow()
 
@@ -266,6 +268,7 @@ class CatalogPL(QObject):
     self.pixmap = self.messagePL = self.isOkPL = None
     self.legendCatalogLayer = self.downloadSettings = None
     self.imageDownload = self.totalReady = None
+    self.currentItem = None
     self.ltgCatalog = None
 
     setLegendCatalogLayer()
@@ -671,7 +674,11 @@ class CatalogPL(QObject):
         msg = "Canceled by user"
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
         return
-  
+      
+      if numError > 0:
+        msg = "Error request: %s (Code = %d)" % ( response[ 'message' ], response[ 'errorCode' ] )
+        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+
       self.legendCatalogLayer.enabledDownload()
       self._endDownload( numError, msgDownload )
 
@@ -706,6 +713,8 @@ class CatalogPL(QObject):
         fileName = self.imageDownload.fileName()
         self.imageDownload.rename( '.'.join( fileName.rsplit('.')[:-1] ) )
       else:
+        msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
+        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
         self.totalReady = None
         self.imageDownload.remove()
 
@@ -748,6 +757,7 @@ class CatalogPL(QObject):
         iter.close()
         break
       if not QFile.exists( image ):
+        self.currentItem = feat['id']
         self.imageDownload = QFile( "%s.part" % image )
         self.imageDownload.open( QIODevice.WriteOnly )
         json = feat['metadata_json']
@@ -777,6 +787,8 @@ class CatalogPL(QObject):
       if response[ 'isOk' ]:
         self.pixmap = response[ 'pixmap' ]
       else:
+        msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
+        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
         self.pixmap = None
       loop.quit()
 
@@ -805,6 +817,7 @@ class CatalogPL(QObject):
         step -= 1
         break
       if not QFile.exists( thumbnail ):
+        self.currentItem = feat['id']
         json = feat['metadata_json']
         self.apiPL.getThumbnail( json, square, setFinished )
         loop.exec_()

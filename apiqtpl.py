@@ -327,7 +327,7 @@ class API_PlanetLabs(QObject):
     keyThumbnail = 'square_thumbnail' if square else 'thumbnail'
     ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, [ 'links', keyThumbnail ] )
     if not ok:
-      response = { 'isOk': False, 'message': url }
+      response = { 'isOk': False, 'errorCode': -1, 'message': url }
       setFinished( response )
     else:
       url = QUrl( url )
@@ -346,7 +346,7 @@ class API_PlanetLabs(QObject):
     keys = [ 'data', 'products', keyVisual, 'full' ]
     ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, keys )
     if not ok:
-      response = { 'isOk': False, 'message': url }
+      response = { 'isOk': False, 'errorCode': -1, 'message': url }
       setFinished( response )
     else:
       url = QUrl( url )
@@ -400,7 +400,7 @@ class API_PlanetLabs(QObject):
     keys = [ 'links', 'self' ]
     ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, keys )
     if not ok:
-      setFinished( { 'isOk': False, 'totalReady': 0 } )
+      setFinished( { 'isOk': False, 'errorCode': -1, 'messsage': url, 'totalReady': 0 } )
     else:
       server_url = "%s/${z}/${x}/${y}.png" % url.replace( "https://api", "https://tiles")
       user_pwd = API_PlanetLabs.validKey
