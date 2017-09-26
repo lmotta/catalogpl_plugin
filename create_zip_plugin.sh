@@ -10,5 +10,3 @@ zip -r $plugin_dir $plugin_dir
 rm -r $plugin_dir
 #
 kdialog --msgbox "Zip file created: "$plugin_dir".zip"
-
-

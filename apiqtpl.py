@@ -19,7 +19,8 @@ email                : motta.luiz@gmail.com
  ***************************************************************************/
 """
 
-import json
+import json, datetime
+
 
 from PyQt4.QtCore import ( Qt, QObject, QByteArray, QUrl, pyqtSignal, pyqtSlot )
 from PyQt4.QtNetwork import ( QNetworkAccessManager, QNetworkRequest, QNetworkReply )
@@ -233,6 +234,7 @@ class API_PlanetLabs(QObject):
   def __init__(self):
     super( API_PlanetLabs, self ).__init__()
     self.access = AccessSite()
+    self.currentUrl = None
 
   def _clearResponse(self, response):
     if response.has_key('data'):
@@ -262,7 +264,8 @@ class API_PlanetLabs(QObject):
 
       setFinished( response )
 
-    url = QUrl( API_PlanetLabs.urlRoot )
+    self.currentUrl = API_PlanetLabs.urlRoot
+    url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     self.access.run( url, '', True ) # Send all data in finished
 
@@ -276,7 +279,8 @@ class API_PlanetLabs(QObject):
 
       setFinished( response )
 
-    url = QUrl( API_PlanetLabs.urlRoot )
+    self.currentUrl = API_PlanetLabs.urlRoot
+    url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     self.access.run( url, key, True ) # Send all data in finished
 
@@ -294,7 +298,8 @@ class API_PlanetLabs(QObject):
 
       setFinished( response )
 
-    url = QUrl( API_PlanetLabs.urlQuickSearch )
+    self.currentUrl = API_PlanetLabs.urlQuickSearch
+    url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     self.access.run( url, API_PlanetLabs.validKey, True, json_request )
 
@@ -310,6 +315,8 @@ class API_PlanetLabs(QObject):
 
       setFinished( response )
 
+
+    self.currentUrl = url
     url = QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
     self.access.run( url, API_PlanetLabs.validKey, True )
@@ -317,23 +324,28 @@ class API_PlanetLabs(QObject):
   def getAssetsStatus(self, item_type, item_id, setFinished):
     @pyqtSlot(dict)
     def finished( response):
-      def getStatus(asset):
+      def setStatus(asset):
+        value = '*None*'
         if data.has_key( asset ) and data[ asset ].has_key('status'):
-          return data[ asset ]['status']
-        return '*None*'
+          value = data[ asset ]['status']
+        key = "a_{0}".format( asset ) # Show in order(assets, date, url)
+        response['assets_status'][ key ] = value
 
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
+        date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        response['assets_status'] = { 'date_calculate': date_time }
         data = json.loads( str( response[ 'data' ] ) )
-        response[ 'assets_status' ] = {
-          'analytic': getStatus('analytic'),
-          'udm': getStatus('udm')
-        }
+        if not data.has_key('analytic') or not data.has_key('udm'):
+          response['assets_status']['url'] = self.currentUrl
+        setStatus('analytic')
+        setStatus('udm') 
         self._clearResponse( response )
 
       setFinished( response )
 
     url = API_PlanetLabs.urlAssets.format(item_type=item_type, item_id=item_id)
+    self.currentUrl = url
     url = QUrl.fromEncoded( url )
 
     self.access.finished.connect( finished )
@@ -352,6 +364,7 @@ class API_PlanetLabs(QObject):
       setFinished( response )
 
     url = API_PlanetLabs.urlThumbnail.format( item_type=item_type, item_id=item_id )
+    self.currentUrl = url
     url = QUrl( url )
     self.access.finished.connect( finished )
     self.access.run( url, API_PlanetLabs.validKey, True )

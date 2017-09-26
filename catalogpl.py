@@ -941,6 +941,7 @@ class CatalogPL(QObject):
       else:
         msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.currentItem = None
         self.pixmap = None
       loop.quit()
 
@@ -1029,6 +1030,7 @@ class CatalogPL(QObject):
       else:
         msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.currentItem = None
         self.totalReady = None
         self.imageDownload.remove()
 
