@@ -15,6 +15,8 @@ See presentation in http://pt.slideshare.net/LuizMotta3/planetlabs-explorer-qgis
 Luiz Motta
 
 ## Changelog
+- 2017-09-26
+Start update to API Planet V1
 - 2015-08-17
 Fixed message when error download and add message log
 - 2015-7-28

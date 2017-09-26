@@ -7,6 +7,8 @@ Comandos do Github
 git add .
 git commit -m ""
 
+git commit -a -m "" Testar..
+
 - Empurrar o diretório remoto(GitHub) - Publicar os commits locais
 git push
 * use o usr/pwd do Github: lmotta/lgithub17
