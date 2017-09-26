@@ -5,7 +5,7 @@ Comandos do Github
 * Os arquivos editados ficam no 'staged'
 * Adicionar os arquivos (add .) ou algum especifico (add nome_arquivo) do 'staged'
 git add .
-git commit -m "Mensagem do commit"
+git commit -m ""
 
 - Empurrar o diretório remoto(GitHub) - Publicar os commits locais
 git push
