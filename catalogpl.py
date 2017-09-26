@@ -1045,6 +1045,10 @@ class CatalogPL(QObject):
         self.ltgCatalog.addLayer( layer)
         self.legendRaster.setLayer( layer )
 
+    msg = "Sorry! I am working this feature for API Planet V1"
+    self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
+    return
+    
     ltgRoot = QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog(ltgRoot)
 

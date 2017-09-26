@@ -328,6 +328,9 @@ class API_PlanetLabs(QObject):
         value = '*None*'
         if data.has_key( asset ) and data[ asset ].has_key('status'):
           value = data[ asset ]['status']
+        else:
+          if not response['assets_status'].has_key('url'):
+            response['assets_status']['url'] = self.currentUrl
         key = "a_{0}".format( asset ) # Show in order(assets, date, url)
         response['assets_status'][ key ] = value
 
@@ -336,8 +339,6 @@ class API_PlanetLabs(QObject):
         date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         response['assets_status'] = { 'date_calculate': date_time }
         data = json.loads( str( response[ 'data' ] ) )
-        if not data.has_key('analytic') or not data.has_key('udm'):
-          response['assets_status']['url'] = self.currentUrl
         setStatus('analytic')
         setStatus('udm') 
         self._clearResponse( response )
