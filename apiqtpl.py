@@ -19,10 +19,11 @@ email                : motta.luiz@gmail.com
  ***************************************************************************/
 """
 
+import json
+
 from PyQt4.QtCore import ( Qt, QObject, QByteArray, QUrl, pyqtSignal, pyqtSlot )
 from PyQt4.QtNetwork import ( QNetworkAccessManager, QNetworkRequest, QNetworkReply )
 from PyQt4.QtGui import( QPixmap )
-import json
 
 class AccessSite(QObject):
 
@@ -51,13 +52,18 @@ class AccessSite(QObject):
     # Input by self.run
     self.key = self.responseAllFinished = None
 
-  def run(self, url, key='', responseAllFinished=False):
+  def run(self, url, key='', responseAllFinished=False, json_request=None):
     ( self.key, self.responseAllFinished ) = ( key, responseAllFinished )
     self._connect()
     self.totalReady = 0
     self.isKilled = False
     request = QNetworkRequest( url )
-    reply = self.networkAccess.get( request )
+    if json_request is None:
+      reply = self.networkAccess.get( request )
+    else:
+      request.setHeader( QNetworkRequest.ContentTypeHeader, "application/json" )
+      data = QByteArray( json.dumps( json_request ) )
+      reply = self.networkAccess.post( request, data )
     if reply is None:
       response = { 'isOk': False, 'message': "Network error", 'errorCode': -1 }
       self._connect( False )
@@ -217,13 +223,22 @@ class AccessSite(QObject):
 
 class API_PlanetLabs(QObject):
 
-  urlRoot = "https://api.planet.com/"
-  urlScenesOrtho = "https://api.planet.com/v0/scenes/ortho/"
+  urlRoot = "https://api.planet.com"
+  urlQuickSearch = "https://api.planet.com/data/v1/quick-search"
+  urlThumbnail = "https://api.planet.com/data/v1/item-types/{item_type}/items/{item_id}/thumb"
+  urlTMS = "https://tiles.planet.com/data/v1/{item_type}/{item_id}/{{z}}/{{x}}/{{y}}.png"
+  urlAssets = "https://api.planet.com/data/v1/item-types/{item_type}/items/{item_id}/assets" 
   validKey = None
 
   def __init__(self):
     super( API_PlanetLabs, self ).__init__()
     self.access = AccessSite()
+
+  def _clearResponse(self, response):
+    if response.has_key('data'):
+      response['data'].clear()
+      del response[ 'data' ]
+    del response[ 'statusRequest' ]
 
   def kill(self):
     self.access.kill()
@@ -237,10 +252,7 @@ class API_PlanetLabs(QObject):
       self.access.finished.disconnect( finished )
       if response['isOk']:
         response[ 'isHostLive' ] = True
-
-        response[ 'data' ].clear()
-        del response[ 'data' ]
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
       else:
         if response['errorCode'] == QNetworkReply.HostNotFoundError:
           response[ 'isHostLive' ] = False
@@ -260,10 +272,7 @@ class API_PlanetLabs(QObject):
       self.access.finished.disconnect( finished )
       if response['isOk']:
         API_PlanetLabs.validKey = key
-
-        response[ 'data' ].clear()
-        del response[ 'data' ]
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
 
       setFinished( response )
 
@@ -271,37 +280,33 @@ class API_PlanetLabs(QObject):
     self.access.finished.connect( finished )
     self.access.run( url, key, True ) # Send all data in finished
 
-  def getTotalScenesOrtho(self, url, setFinished):
+  def getUrlScenes(self, json_request, setFinished):
     @pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
-        data = json.loads( str( response[ 'data' ] ) )
-        response[ 'total' ] = data[ 'count' ]
-
+        data = json.loads( str( response['data'] ) )
+        response[ 'url_scenes' ] = data['_links']['_self']
+        response['total'] = len( data['features'] )
+        
         data.clear()
-        response[ 'data' ].clear()
-        del response[ 'data' ]
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
 
       setFinished( response )
 
-    url = QUrl.fromEncoded( url )
+    url = QUrl( API_PlanetLabs.urlQuickSearch )
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True )
+    self.access.run( url, API_PlanetLabs.validKey, True, json_request )
 
-  def getScenesOrtho(self, url, setFinished):
+  def getScenes(self, url, setFinished):
     @pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
         data = json.loads( str( response[ 'data' ] ) )
-        response[ 'url' ] = data[ 'links' ][ 'next' ]
+        response[ 'url' ] = data[ '_links' ][ '_next' ]
         response[ 'scenes' ] = data[ 'features' ]
-
-        response[ 'data' ].clear()
-        del response[ 'data' ]
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
 
       setFinished( response )
 
@@ -309,7 +314,32 @@ class API_PlanetLabs(QObject):
     self.access.finished.connect( finished )
     self.access.run( url, API_PlanetLabs.validKey, True )
 
-  def getThumbnail(self, jsonMetadataFeature, square, setFinished):
+  def getAssetsStatus(self, item_type, item_id, setFinished):
+    @pyqtSlot(dict)
+    def finished( response):
+      def getStatus(asset):
+        if data.has_key( asset ) and data[ asset ].has_key('status'):
+          return data[ asset ]['status']
+        return '*None*'
+
+      self.access.finished.disconnect( finished )
+      if response[ 'isOk' ]:
+        data = json.loads( str( response[ 'data' ] ) )
+        response[ 'assets_status' ] = {
+          'analytic': getStatus('analytic'),
+          'udm': getStatus('udm')
+        }
+        self._clearResponse( response )
+
+      setFinished( response )
+
+    url = API_PlanetLabs.urlAssets.format(item_type=item_type, item_id=item_id)
+    url = QUrl.fromEncoded( url )
+
+    self.access.finished.connect( finished )
+    self.access.run( url, API_PlanetLabs.validKey, True )
+
+  def getThumbnail(self, item_id, item_type, setFinished):
     @pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
@@ -317,29 +347,21 @@ class API_PlanetLabs(QObject):
         pixmap = QPixmap()
         pixmap.loadFromData( response[ 'data' ] )
         response[ 'pixmap' ] = pixmap
-
-        response[ 'data' ].clear()
-        del response[ 'data' ]
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
 
       setFinished( response )
 
-    keyThumbnail = 'square_thumbnail' if square else 'thumbnail'
-    ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, [ 'links', keyThumbnail ] )
-    if not ok:
-      response = { 'isOk': False, 'errorCode': -1, 'message': url }
-      setFinished( response )
-    else:
-      url = QUrl( url )
-      self.access.finished.connect( finished )
-      self.access.run( url, API_PlanetLabs.validKey, True )
+    url = API_PlanetLabs.urlThumbnail.format( item_type=item_type, item_id=item_id )
+    url = QUrl( url )
+    self.access.finished.connect( finished )
+    self.access.run( url, API_PlanetLabs.validKey, True )
 
   def saveImage(self, jsonMetadataFeature, isVisual, setFinished, setSave, setProgress):
     @pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
       if response['isOk']:
-        del response[ 'statusRequest' ]
+        self._clearResponse( response )
       setFinished( response ) # response[ 'totalReady' ]
       
     keyVisual = 'visual' if isVisual else 'analytic'
@@ -355,61 +377,6 @@ class API_PlanetLabs(QObject):
       self.access.status_download.connect( setProgress )
       self.access.run( url, API_PlanetLabs.validKey, False )
 
-  def saveTMS(self, fid, path, targetWindow, jsonMetadataFeature, setFinished, setSave):
-    def contenTargetWindow():
-      return '<TargetWindow>\n'\
-             '  <UpperLeftX>%f</UpperLeftX>\n'\
-             '  <UpperLeftY>%f</UpperLeftY>\n'\
-             '  <LowerRightX>%f</LowerRightX>\n'\
-             '  <LowerRightY>%f</LowerRightY>\n'\
-             '</TargetWindow>\n' % (
-               targetWindow['ulX'], targetWindow['ulY'], targetWindow['lrX'], targetWindow['lrY'] )
-
-    def contentTMS():
-      return '<GDAL_WMS>\n'\
-             '<!-- Planet Labs -->\n'\
-             '<Service name="TMS">\n'\
-             '<ServerUrl>%s</ServerUrl>\n'\
-             '<Transparent>TRUE</Transparent>\n'\
-             '</Service>\n'\
-             '<DataWindow>\n'\
-             '<UpperLeftX>-20037508.34</UpperLeftX>\n'\
-             '<UpperLeftY>20037508.34</UpperLeftY>\n'\
-             '<LowerRightX>20037508.34</LowerRightX>\n'\
-             '<LowerRightY>-20037508.34</LowerRightY>\n'\
-             '<TileLevel>15</TileLevel>\n'\
-             '<TileCountX>1</TileCountX>\n'\
-             '<TileCountY>1</TileCountY>\n'\
-             '<YOrigin>top</YOrigin>\n'\
-             '</DataWindow>\n'\
-             '%s'\
-             '<Projection>EPSG:3857</Projection>\n'\
-             '<BlockSizeX>256</BlockSizeX>\n'\
-             '<BlockSizeY>256</BlockSizeY>\n'\
-             '<BandsCount>4</BandsCount>\n'\
-             '<DataType>byte</DataType>\n'\
-             '<ZeroBlockHttpCodes>204,303,400,404,500,501</ZeroBlockHttpCodes>\n'\
-             '<ZeroBlockOnServerException>true</ZeroBlockOnServerException>\n'\
-             '<MaxConnections>5</MaxConnections>\n'\
-             '<UserPwd>%s</UserPwd>\n'\
-             '<Cache>\n'\
-            '<Path>%s</Path>\n'\
-             '</Cache>\n'\
-             '</GDAL_WMS>\n' % ( server_url, target_window, user_pwd, cache_path )
-
-    keys = [ 'links', 'self' ]
-    ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, keys )
-    if not ok:
-      setFinished( { 'isOk': False, 'errorCode': -1, 'messsage': url, 'totalReady': 0 } )
-    else:
-      server_url = "%s/${z}/${x}/${y}.png" % url.replace( "https://api", "https://tiles")
-      user_pwd = API_PlanetLabs.validKey
-      cache_path = "%s/cache_pl_%s.tms" % ( path, fid )
-      target_window = contenTargetWindow()
-      content_tms = contentTMS() 
-      setSave( content_tms )
-      setFinished( { 'isOk': True, 'totalReady': 1 } )
-
   @staticmethod
   def getUrlFilterScenesOrtho(filters):
     items = []
@@ -418,18 +385,16 @@ class API_PlanetLabs(QObject):
       svalue = str( item[1] )
       items.append( ( skey, svalue ) )
 
-    url = QUrl( API_PlanetLabs.urlScenesOrtho )
+    url = QUrl( API_PlanetLabs.urlScenesOrtho) # urlScenesRapideye
     url.setQueryItems( items )
 
     return url.toEncoded()
 
   @staticmethod
-  def getJsonByObjectPy( objPy ):
-    return json.dumps( objPy )
-
-  @staticmethod
   def getValue(jsonMetadataFeature, keys):
-    dicMetadata = json.loads( jsonMetadataFeature )
+    dicMetadata = jsonMetadataFeature
+    if not isinstance( jsonMetadataFeature, dict):
+      dicMetadata = json.loads( jsonMetadataFeature )
     msgError = None
     e_keys = map( lambda item: "'%s'" % item, keys )
     try:
@@ -475,6 +440,20 @@ class API_PlanetLabs(QObject):
     fill_item( '', json.loads( jsonMetadataFeature ) )
     
     return '\n'.join( items )
+
+  @staticmethod
+  def getHtmlTreeMetadata(value, html):
+    if isinstance( value, dict ):
+      html += "<ul>"
+      for key, val in sorted( value.iteritems() ):
+        if not isinstance( val, dict ):
+          html += "<li>%s: %s</li> " % ( key, val )
+        else:
+          html += "<li>%s</li> " % key
+        html = API_PlanetLabs.getHtmlTreeMetadata( val, html )
+      html += "</ul>"
+      return html
+    return html
 
   @staticmethod
   def getTextValuesMetadata( dicMetadataFeature ):

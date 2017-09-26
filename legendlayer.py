@@ -25,7 +25,8 @@ from PyQt4.QtXml import QDomDocument
 
 import qgis
 from qgis.gui import ( QgsRubberBand ) 
-from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry, QgsCoordinateTransform, QgsCoordinateReferenceSystem )
+from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
+                        QgsCoordinateTransform, QgsCoordinateReferenceSystem )
 
 class LegendRaster(object):
 
@@ -96,8 +97,7 @@ class LegendRaster(object):
     canvas.refresh()
     self._highlight( canvas, extent )
 
-
-class LegendTMS(LegendRaster):
+class LegendTMSXml(LegendRaster):
 
   def __init__(self, parentMenu):
      super(LegendTMS, self).__init__( parentMenu )
@@ -153,3 +153,38 @@ class LegendTMS(LegendRaster):
     tw = getTargetWindows()
     rect =  QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
     return ctCanvas.transform( rect )
+
+class LegendTMS(LegendRaster):
+
+  def __init__(self, parentMenu):
+     super(LegendTMS, self).__init__( parentMenu )
+
+  def _getExtent(self, canvas, layer):
+    crsCanvas = canvas.mapSettings().destinationCrs()
+    crsWkt = QgsCoordinateReferenceSystem(4326, QgsCoordinateReferenceSystem.EpsgCrsId )
+    ctCanvas = QgsCoordinateTransform( crsWkt, crsCanvas )
+    wkt_geom = layer.customProperty( 'wkt_geom' )
+    geom = QgsGeometry.fromWkt( wkt_geom )
+    geom.transform( ctCanvas )
+    return  geom
+
+  def _highlight(self, canvas, geom ):
+    def removeRB():
+      rb.reset( True )
+      canvas.scene().removeItem( rb )
+    
+    rb = QgsRubberBand( canvas, QGis.Polygon)
+    rb.setBorderColor( QColor( 255,  0, 0 ) )
+    rb.setWidth( 2 )
+    rb.setToGeometry( geom, None )
+    QTimer.singleShot( 2000, removeRB )
+
+  @pyqtSlot()
+  def zoom(self):
+    canvas = qgis.utils.iface.mapCanvas()
+    layer = self.legendInterface.currentLayer()
+    geom = self._getExtent( canvas, layer )
+    canvas.setExtent( geom.boundingBox () )
+    canvas.zoomByFactor( 1.05 )
+    canvas.refresh()
+    self._highlight( canvas, geom )

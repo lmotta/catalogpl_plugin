@@ -83,4 +83,4 @@ class CatalogPLPlugin:
       if not self.ctl.hasRegisterKey:
         return
 
-    self.ctl.downloadScenes()
+    self.ctl.createLayerScenes()

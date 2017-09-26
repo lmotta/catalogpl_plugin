@@ -41,7 +41,6 @@ class DialogImageSettingPL(QDialog):
         buttonPath.setText( self.data["path"] )
         radioVisual.setChecked( self.data["isVisual"] )
         radioAnalytic.setChecked( not self.data["isVisual"] )
-        chkBoxSquare.setChecked( self.data["isSquare"] )
         d1 = self.data["date1"]
         d2 = self.data["date2"]
         date1.setDate( d1 )
@@ -65,8 +64,6 @@ class DialogImageSettingPL(QDialog):
       radioVisual = QRadioButton( "Visual", grpImage )
       radioVisual.setObjectName( "rbVisual" )
       radioAnalytic = QRadioButton( "Analytic", grpImage )
-      chkBoxSquare = QCheckBox( "Square thumbnail", grpImage )
-      chkBoxSquare.setObjectName( "cbBoxSquare" )
       buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
       buttonPath.setObjectName( "pbPath" )
 
@@ -76,7 +73,6 @@ class DialogImageSettingPL(QDialog):
 
       layoutImage = QVBoxLayout( grpImage )
       layoutImage.addLayout( layoutRadioButtons )
-      layoutImage.addWidget( chkBoxSquare )
       layoutImage.addWidget( buttonPath )
 
       grpDateSearch = QGroupBox( "Dates for search", self )
@@ -116,7 +112,6 @@ class DialogImageSettingPL(QDialog):
       else:
         radioVisual.setChecked( True )
         radioAnalytic.setChecked( False )
-        chkBoxSquare.setChecked( False )
         d2 = QDate.currentDate()
         d1 = d2.addMonths( -1 )
         date1.setDate( d1 )
@@ -138,9 +133,8 @@ class DialogImageSettingPL(QDialog):
   def _saveDataSetting(self):
     localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
     values = { 
-          'path': "%s/path" % localSetting,
-          'isVisual': "%s/isVisual" % localSetting,
-          'isSquare': "%s/isSquare" % localSetting
+          'path': "{0}/path".format( localSetting ),
+          'isVisual': "{0}/isVisual".format( localSetting )
     }
     s = QSettings()
     for key in values.keys():
@@ -157,19 +151,16 @@ class DialogImageSettingPL(QDialog):
     localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
     values = { 
           'path': "%s/path" % localSetting,
-          'isVisual': "%s/isVisual" % localSetting,
-          'isSquare': "%s/isSquare" % localSetting
+          'isVisual': "%s/isVisual" % localSetting
     }
     data = None
     s = QSettings()
     path = s.value( values['path'], None )
     if not path is None:
       isVisual = s.value( values['isVisual'], None )
-      isSquare = s.value( values['isSquare'], None )
       isVisual = True if isVisual == "true" else False
-      isSquare = True if isSquare == "true" else False
       if QDir( path ).exists():
-        data = { 'path': path, 'isVisual': isVisual, 'isSquare': isSquare, 'isOk': True }
+        data = { 'path': path, 'isVisual': isVisual, 'isOk': True }
       else:
         data = { 'path': path, 'isOk': False }
         s.remove( values['path'] )
@@ -183,18 +174,16 @@ class DialogImageSettingPL(QDialog):
     pb = self.findChild( QPushButton, "pbPath" )
     path = pb.text()
     if path == self.titleSelectDirectory:
-      msg = "Please. %s" % self.titleSelectDirectory
+      msg = "Directory '{0}'not found".format( self.titleSelectDirectory )
       QMessageBox.information( self, "Missing directory for download", msg )
       return
 
     rb = self.findChild( QRadioButton, "rbVisual" )
-    cb = self.findChild( QCheckBox, "cbBoxSquare" )
     date1 = self.findChild( QDateEdit, "deDate1" )
     date2 = self.findChild( QDateEdit, "deDate2" )
     self.data = {
         "path": path,
         "isVisual": rb.isChecked(),
-        "isSquare": cb.isChecked(),
         "date1": date1.date(),
         "date2": date2.date()
     }
@@ -259,6 +248,12 @@ class LegendCatalogLayer():
           'menu': u"Setting downloads",
           'id': "idSetting",
           'slot': self.slots['setting'],
+          'action': None
+        },
+        {
+          'menu': u"Calculate Status Assets",
+          'id': "idCalculateStatusAssets",
+          'slot': self.slots['calculate_status_assets'],
           'action': None
         },
         {

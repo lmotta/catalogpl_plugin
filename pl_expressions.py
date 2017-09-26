@@ -24,10 +24,10 @@ from catalogpl_plugin import API_PlanetLabs
 @qgsfunction(args=1, group='Planet Labs')
 def getValueFromMetadata(values, feature, parent):
   """
-  <h4>Return</h4>Get value of key of  'metadata_json' field
+  <h4>Return</h4>Get value of key of  'meta_json' field
   <p><h4>Syntax</h4>getValueFromMetadata('list_keys')</p>
-  <p><h4>Argument</h4>list_keys -> String with a sequence of keys names</p>
-  <p><h4>Example</h4>getValueFromMetadata( '"camera", "color_mode"' )</p><p>Return: RGB</p>
+  <p><h4>Argument</h4>list_keys -> String with a sequence of keys names - '"key1","key2",...'</p>
+  <p><h4>Example</h4>getValueFromMetadata( '"item_type"' )</p><p>Return: Item type</p>
   """
   if values[0].count('"') % 2 != 0:
     raise Exception("Error! Key need double quotes: %s." % values[0] )
@@ -36,7 +36,7 @@ def getValueFromMetadata(values, feature, parent):
     raise Exception("Error! Field is empty." )
     
 
-  name_metadata_json = 'metadata_json'
+  name_metadata_json = 'meta_json'
   id_metadata_json = feature.fieldNameIndex( name_metadata_json )
   if id_metadata_json == -1:
     raise Exception("Error! Need have '%s' field." % name_metadata_json )
