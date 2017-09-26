@@ -34,7 +34,7 @@ def classFactory(iface):
 
 class CatalogPLPlugin:
 
-  icon = QIcon( os.path.join( os.path.dirname(__file__), 'catalogpl.png' ) )
+  icon = QIcon( os.path.join( os.path.dirname(__file__), 'catalogpl.svg' ) )
   pluginName = "Catalog Planet Labs"
 
   def __init__(self, iface):
