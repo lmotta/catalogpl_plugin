@@ -23,7 +23,8 @@ import os, json
 
 from PyQt4.QtCore import ( Qt, QObject, QDate, QDateTime, QFile, QDir, QIODevice, pyqtSignal,
                            pyqtSlot, QEventLoop, QThread, QRect )
-from PyQt4.QtGui  import ( QDialog, QMessageBox, QLabel, QToolButton, QColor, QProgressBar )
+from PyQt4.QtGui  import ( QApplication, QDialog, QMessageBox, QLabel, QToolButton,
+                           QColor, QProgressBar )
 
 import qgis
 from qgis.core import ( QgsApplication, QgsProject, QgsMapLayerRegistry,
@@ -320,13 +321,15 @@ class CatalogPL(QObject):
   
   def __init__(self, iface, icon):
     def setLegendCatalogLayer():
+      # keys = LegendCatalogLayer.legendMenuIDs 
       slots = { 
-         'clearKey': self.clearKey,
-         'setting': self.settingImages,
-         'tms': self.createTMS,
+         'clear_key': self.clearKey,
+         'clipboard_key': self.clipboardKey,
+         'setting_images': self.settingImages,
          'calculate_status_assets': self.calculateAssetStatus,
-         'images': self.downloadImages,
-         'thumbnails': self.downloadThumbnails
+         'create_tms': self.createTMS,
+         'download_images': self.downloadImages,
+         'download_thumbnails': self.downloadThumbnails
       }
       self.legendCatalogLayer = LegendCatalogLayer( slots )
       self.downloadSettings = DialogImageSettingPL.getDownloadSettings()
@@ -800,6 +803,14 @@ class CatalogPL(QObject):
       msg = "Cleared the register key. Next run QGIS will need enter the key."
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO, 4 )
       self.legendCatalogLayer.enabledClearKey( False )
+
+  @pyqtSlot()
+  def clipboardKey(self):
+    cb = QApplication.clipboard()
+    key = self.mngLogin.getKeySetting()
+    if key is None:
+      key = "Don't have key registered"
+    cb.setText( key, mode=cb.Clipboard )    
 
   @pyqtSlot()
   def settingImages(self):

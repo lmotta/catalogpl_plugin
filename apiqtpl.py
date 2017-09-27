@@ -325,19 +325,27 @@ class API_PlanetLabs(QObject):
     @pyqtSlot(dict)
     def finished( response):
       def setStatus(asset):
-        value = '*None*'
-        if data.has_key( asset ) and data[ asset ].has_key('status'):
-          value = data[ asset ]['status']
-        else:
-          if not response['assets_status'].has_key('url'):
-            response['assets_status']['url'] = self.currentUrl
-        key = "a_{0}".format( asset ) # Show in order(assets, date, url)
-        response['assets_status'][ key ] = value
+        key = "a_{0}".format( asset )
+        response['assets_status'][ key ] = {}
+        r = response['assets_status'][ key ]
+        if not data.has_key( asset ):
+          r['status'] = "*None*"
+          return
+        if data[ asset ].has_key('status'):
+          r['status'] = data[ asset ]['status']
+        if data[ asset ].has_key('_permissions'):
+          permissions = ",".join( data[ asset ]['_permissions'])
+          r['permissions'] = permissions
+        if data[ asset ].has_key('expires_at'):
+          r['expires_at'] = data[ asset ]['expires_at']
 
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
         date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        response['assets_status'] = { 'date_calculate': date_time }
+        response['assets_status'] = {
+          'date_calculate': date_time,
+          'url': self.currentUrl
+        }
         data = json.loads( str( response[ 'data' ] ) )
         setStatus('analytic')
         setStatus('udm') 

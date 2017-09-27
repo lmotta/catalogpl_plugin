@@ -230,7 +230,8 @@ class LegendCatalogLayer():
     self.legendInterface = qgis.utils.iface.legendInterface()
     self.legendMenuIDs = {
       'clear_key': 'idKey',
-      'setting_donwload': 'idSetting',
+      'clipboard_key': 'idClipboardKey',
+      'setting_images': 'idSetting',
       'calculate_status_assets': 'idCalculateStatusAssets',
       'create_tms': 'idCreateTMS',
       'download_images': 'idDownloadImages',
@@ -248,13 +249,19 @@ class LegendCatalogLayer():
         {
           'menu': u"Clear key",
           'id': self.legendMenuIDs['clear_key'],
-          'slot': self.slots['clearKey'],
+          'slot': self.slots['clear_key'],
+          'action': None
+        },
+        {
+          'menu': u"Copy key to Clipboard",
+          'id': self.legendMenuIDs['clipboard_key'],
+          'slot': self.slots['clipboard_key'],
           'action': None
         },
         {
           'menu': u"Setting downloads",
-          'id': self.legendMenuIDs['setting_donwload'],
-          'slot': self.slots['setting'],
+          'id': self.legendMenuIDs['setting_images'],
+          'slot': self.slots['setting_images'],
           'action': None
         },
         {
@@ -266,19 +273,19 @@ class LegendCatalogLayer():
         {
           'menu': u"Create TMS",
           'id': self.legendMenuIDs['create_tms'],
-          'slot': self.slots['tms'],
+          'slot': self.slots['create_tms'],
           'action': None
         },
         {
           'menu': u"Download images",
           'id': self.legendMenuIDs['download_images'],
-          'slot': self.slots['images'],
+          'slot': self.slots['download_images'],
           'action': None
         },
         {
           'menu': u"Download thumbnails",
           'id': self.legendMenuIDs['download_thumbnails'],
-          'slot': self.slots['thumbnails'],
+          'slot': self.slots['download_thumbnails'],
           'action': None
         }
       ]
@@ -287,7 +294,7 @@ class LegendCatalogLayer():
       for item in self.legendLayer:
         item['action'] = QAction( item['menu'], None )
         item['action'].triggered.connect( item['slot'] )
-        if item['id'] == self.legendMenuIDs['setting_donwload']:
+        if item['id'] == self.legendMenuIDs['setting_images']:
           lblAction = "{0} {1}".format( item['menu'], prefixTotal )
           item['action'].setText( lblAction )
         arg = ( item['action'], labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
@@ -299,8 +306,9 @@ class LegendCatalogLayer():
     addActionLegendLayer( u"Planet Labs" )
 
   def enabledProcessing(self, enabled=True):
+    notIds = ( self.legendMenuIDs['clear_key'], self.legendMenuIDs['clipboard_key'] )
     for item in self.legendLayer:
-      if item['id'] == self.legendMenuIDs['clear_key']:
+      if item['id'] in notIds:
         continue
       item['action'].setEnabled( enabled )
 
@@ -323,7 +331,7 @@ class LegendCatalogLayer():
     
     prefixTotal = getPrefixTotal()
     for item in self.legendLayer:
-      if item['id'] == self.legendMenuIDs['setting_donwload']:
+      if item['id'] == self.legendMenuIDs['setting_images']:
         lblAction = "{0} {1}".format( item['menu'], prefixTotal )
         item['action'].setText( lblAction )
         break
