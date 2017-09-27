@@ -223,12 +223,19 @@ class DialogImageSettingPL(QDialog):
     date2.setMinimumDate( newDate.addDays( +1 ) )
     date1.dateChanged.connect( self.onDateChanged1 )
 
-
 class LegendCatalogLayer():
 
   def __init__(self, slots):
     self.slots = slots
     self.legendInterface = qgis.utils.iface.legendInterface()
+    self.legendMenuIDs = {
+      'clear_key': 'idKey',
+      'setting_donwload': 'idSetting',
+      'calculate_status_assets': 'idCalculateStatusAssets',
+      'create_tms': 'idCreateTMS',
+      'download_images': 'idDownloadImages',
+      'download_thumbnails': 'idDownloadThumbnails'
+    }
     self.legendLayer = self.layer = None
 
   def clean(self):
@@ -236,85 +243,87 @@ class LegendCatalogLayer():
       self.legendInterface.removeLegendLayerAction( item['action'] )
 
   def setLayer(self, layer):
-    def addActionLegendLayer(parentMenu):
+    def addActionLegendLayer(labelMenu):
       self.legendLayer = [
         {
           'menu': u"Clear key",
-          'id': "idKey",
+          'id': self.legendMenuIDs['clear_key'],
           'slot': self.slots['clearKey'],
           'action': None
         },
         {
           'menu': u"Setting downloads",
-          'id': "idSetting",
+          'id': self.legendMenuIDs['setting_donwload'],
           'slot': self.slots['setting'],
           'action': None
         },
         {
           'menu': u"Calculate Status Assets",
-          'id': "idCalculateStatusAssets",
+          'id': self.legendMenuIDs['calculate_status_assets'],
           'slot': self.slots['calculate_status_assets'],
           'action': None
         },
         {
           'menu': u"Create TMS",
-          'id': "idCreateTMS",
+          'id': self.legendMenuIDs['create_tms'],
           'slot': self.slots['tms'],
           'action': None
         },
         {
           'menu': u"Download images",
-          'id': "idDownloadImages",
+          'id': self.legendMenuIDs['download_images'],
           'slot': self.slots['images'],
           'action': None
         },
         {
           'menu': u"Download thumbnails",
-          'id': "idDownloadThumbnails",
+          'id': self.legendMenuIDs['download_thumbnails'],
           'slot': self.slots['thumbnails'],
           'action': None
         }
       ]
+
+      prefixTotal = "({0} total)".format( self.layer.featureCount() )
       for item in self.legendLayer:
-        #al = QAction( CatalogPLPlugin.icon, item['menu'], self.legendInterface )
         item['action'] = QAction( item['menu'], None )
-        if item['id'].find("idDownload") != -1:
-          item['action'].setEnabled( False )
         item['action'].triggered.connect( item['slot'] )
-        self.legendInterface.addLegendLayerAction( item['action'], parentMenu, item['id'], QgsMapLayer.VectorLayer, False )
+        if item['id'] == self.legendMenuIDs['setting_donwload']:
+          lblAction = "{0} {1}".format( item['menu'], prefixTotal )
+          item['action'].setText( lblAction )
+        arg = ( item['action'], labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
+        self.legendInterface.addLegendLayerAction( *arg )
+        self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
 
     self.layer = layer
     self.layer.selectionChanged.connect( self.selectionChanged )
     addActionLegendLayer( u"Planet Labs" )
-    for item in self.legendLayer:
-      self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
-      if item['id'].find("idSetting") != -1:
-        text = "%s (%d total)..." % ( item['menu'], self.layer.featureCount() )
-        item['action'].setText( text )
 
-  def enabledDownload(self, enabled=True):
-    selFeats = self.layer.selectedFeatureCount()
-    totFeats = self.layer.featureCount()
-    countDownload = " (%d selected)..." % selFeats if selFeats > 0 else " (%d total)..." % totFeats
+  def enabledProcessing(self, enabled=True):
     for item in self.legendLayer:
-      if item['id'].find("idDownload") != -1:
-        item['action'].setEnabled( enabled )
-      elif item['id'].find("idSetting") != -1:
-        text = "%s%s" % ( item['menu'], countDownload )
-        item['action'].setText( text )
+      if item['id'] == self.legendMenuIDs['clear_key']:
+        continue
+      item['action'].setEnabled( enabled )
 
   def enabledClearKey (self, enabled=True):
     for item in self.legendLayer:
-      if item['id'].find("idKey") != -1:
+      if item['id'] == self.legendMenuIDs['clear_key']:
         item['action'].setEnabled( enabled )
+        break
 
   @pyqtSlot()
   def selectionChanged(self):
-    selFeats = self.layer.selectedFeatureCount()
-    totFeats = self.layer.featureCount()
-    countDownload = " (%d selected)..." % selFeats if selFeats > 0 else " (%d total)..." % totFeats
+    def getPrefixTotal():
+      total = self.layer.selectedFeatureCount()
+      prefixTotal = "({0} selected)".format( total )
+      if total == 0:
+        total = self.layer.featureCount()
+        prefixTotal = "({0} total)".format( total )
+  
+      return prefixTotal
+    
+    prefixTotal = getPrefixTotal()
     for item in self.legendLayer:
-      if item['id'].find("idSetting") != -1:
-        text = "%s%s" % ( item['menu'], countDownload )
-        item['action'].setText( text )
+      if item['id'] == self.legendMenuIDs['setting_donwload']:
+        lblAction = "{0} {1}".format( item['menu'], prefixTotal )
+        item['action'].setText( lblAction )
         break

@@ -416,7 +416,7 @@ class CatalogPL(QObject):
     arg = ( self.msgBar, msg, totalFeat, funcKill )
     self.mbcancel = MessageBarCancelProgressDownload( *arg )
     self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledDownload( False )
+    self.legendCatalogLayer.enabledProcessing( False )
     return { 'isOk': True, 'iterFeat': iterFeat }
 
   def _endProcessing(self, nameProcessing, totalError):
@@ -425,7 +425,7 @@ class CatalogPL(QObject):
       self.msgBar.popWidget()
       return
     
-    self.legendCatalogLayer.enabledDownload()
+    self.legendCatalogLayer.enabledProcessing()
     
     self.msgBar.popWidget()
     if not self.mbcancel.isCancel and totalError > 0:
@@ -664,7 +664,6 @@ class CatalogPL(QObject):
         return json.loads( QgsGeometry.fromRect( extent ).exportToGeoJSON() )
 
       def finished():
-
         self.canvas.scene().removeItem( rb )
         if not self.hasCriticalMessage:
           self.msgBar.popWidget()
@@ -680,9 +679,6 @@ class CatalogPL(QObject):
           typeMessage = QgsMessageBar.WARNING
           msg = "Canceled the search of images. Removed %d features" % self.total_features_scenes
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, typeMessage, 4 )
-
-        if not self.layerTree is None:
-          self.legendCatalogLayer.enabledDownload( not self.mbcancel.isCancel )
 
       date1 = self.downloadSettings['date1']
       date2 = self.downloadSettings['date2']
@@ -753,28 +749,24 @@ class CatalogPL(QObject):
       if not self.downloadSettings['isOk']:
         msg = "Please setting the Planet Labs Catalog layer"
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
-        self.legendCatalogLayer.enabledDownload( False )
+        self.legendCatalogLayer.enabledProcessing( False )
         return
       if not QDir( self.downloadSettings[ 'path' ] ).exists() :
         msg = "Register directory '%s' does not exist! Please setting the Planet Labs Catalog layer" % self.downloadSettings['path']
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
-        self.legendCatalogLayer.enabledDownload( False )
+        self.legendCatalogLayer.enabledProcessing( False )
         return
 
     self.enableRun.emit( False )
 
     # Setting Layer
-    if self.layerTree is None: # Use this because slot layerWillBeRemoved 
-      createLayer()
-      self.legendCatalogLayer.setLayer( self.layer )
-    else:
-      self.layer.removeSelection() # Before can be had selected
-      removeFeatures()
-      self.legendCatalogLayer.enabledDownload( False )
+    if not self.layer is None:
+      QgsMapLayerRegistry.instance().removeMapLayer( self.layer.id() )
+    createLayer()
 
     self.hasCriticalMessage = False
-
     populateLayer() # addFeatures().commitFeatures() -> QEventLoop()
+    self.legendCatalogLayer.setLayer( self.layer )
     checkLayerLegend()
     self.enableRun.emit( True )
 
@@ -784,7 +776,7 @@ class CatalogPL(QObject):
       self.apiPL.kill()
       self.worker.kill()
       self.legendCatalogLayer.clean()
-      self.layerTree = None
+      self.layerTree = self.layer = None
 
   @pyqtSlot()
   def clearKey(self):
@@ -813,7 +805,7 @@ class CatalogPL(QObject):
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
     if dlg.exec_() == QDialog.Accepted:
       self.downloadSettings = dlg.getData()
-      self.legendCatalogLayer.enabledDownload()
+      self.legendCatalogLayer.enabledProcessing()
 
   @pyqtSlot()
   def createTMS(self):
@@ -911,7 +903,7 @@ class CatalogPL(QObject):
         msg = "Error request: %s (Code = %d)" % ( response[ 'message' ], response[ 'errorCode' ] )
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
 
-      self.legendCatalogLayer.enabledDownload()
+      self.legendCatalogLayer.enabledProcessing()
       self._endProcessing( numError, msgDownload )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
@@ -1054,7 +1046,7 @@ class CatalogPL(QObject):
     loop = QEventLoop()
 
     self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledDownload( False )
+    self.legendCatalogLayer.enabledProcessing( False )
     numError = 0
     for feat in iter:
       image = os.path.join( path, u"%s_%s.tif" % ( feat['id'], suffix ) )
@@ -1083,7 +1075,7 @@ class CatalogPL(QObject):
       self.msgBar.popWidget()
       return
 
-    self.legendCatalogLayer.enabledDownload()
+    self.legendCatalogLayer.enabledProcessing()
     step -= 1
     msg = msgDownload.replace( str( total ), str ( step  ) ) 
     self._endProcessing( numError, msg )
