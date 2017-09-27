@@ -257,8 +257,8 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Download TMS",
-          'id': "idDownloadTMS",
+          'menu': u"Create TMS",
+          'id': "idCreateTMS",
           'slot': self.slots['tms'],
           'action': None
         },

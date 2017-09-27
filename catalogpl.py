@@ -38,6 +38,7 @@ from legendlayer import ( LegendRaster, LegendTMS )
 
 from managerloginkey import ManagerLoginKey
 from curses.has_key import has_key
+from __builtin__ import True
 
 class MessageBarCancelProgressDownload(QObject):
 
@@ -256,9 +257,8 @@ class WorkerCreateTMS(QObject):
     self.isKilled = None # set in run
     self.iterFeat = self.ltgRoot = self.ltgCatalog = self.msgDownload = None # setting
 
-  def setting(self, iterFeat, ltgRoot, ltgCatalog, msgDownload):
-   self.ltgRoot, self.ltgCatalog  = ltgRoot, ltgCatalog
-   self.iterFeat, self.msgDownload = iterFeat, msgDownload
+  def setting(self, iterFeat, ltgRoot, ltgCatalog):
+   self.iterFeat, self.ltgRoot, self.ltgCatalog  = iterFeat, ltgRoot, ltgCatalog
 
   @pyqtSlot()
   def run(self):
@@ -270,7 +270,7 @@ class WorkerCreateTMS(QObject):
       if not lyr.isValid():
         msg = "Error create TMS from {0}: Invalid layer".format( item_id )
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
-        numError += 1
+        totalError += 1
         return
       if not lyr.source() in sources_catalog_group:
         lyr.setCustomProperty( 'wkt_geom', wkt_geom )
@@ -285,7 +285,7 @@ class WorkerCreateTMS(QObject):
     sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
 
     self.isKilled = False
-    step = numError = 0
+    step = totalError = 0
     for feat in self.iterFeat:
       step += 1
       self.stepProgress.emit( step )
@@ -297,14 +297,13 @@ class WorkerCreateTMS(QObject):
       if not ok:
         msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
-        numError += 1
+        totalError += 1
         continue
       wkt_geom = feat.geometry().exportToWkt()
       addTMS()
       uri.removeParam('url')
 
-    self.msgDownload = self.msgDownload.replace( str( 'Download_total' ), str ( step  ) ) 
-    message  = { 'numError': numError, 'msgDownload': self.msgDownload }
+    message  = { 'totalError': totalError }
     self.finished.emit( message )
 
   def kill(self):
@@ -393,30 +392,58 @@ class CatalogPL(QObject):
     else:
       s['signal'].disconnect( s['slot'] )
 
-  def _getInitDataDownload(self, txtDownload):
-    path = self.downloadSettings['path']
-    total = msg1 = None 
-    iter = self.layer.selectedFeaturesIterator()
-    if not iter.isClosed():
+  def _startProcess(self, funcKill):
+    def getFeatureIteratorTotal():
+      hasSelected = True
+      iter = self.layer.selectedFeaturesIterator()
       total = self.layer.selectedFeatureCount()
-      msg1 = "Download %d %s (selected)" % ( total, txtDownload )
-    else:
-      iter = self.layer.getFeatures()
-      total = self.layer.featureCount()
-      msg1 = "Download %d %s (total)" % ( total, txtDownload )
-    return ( path, total, msg1, iter )
+      if total == 0:
+        hasSelected = False
+        iter = self.layer.getFeatures()
+        total = self.layer.featureCount()
 
-  def _endDownload(self, numError, msg):
+      return ( iter, total, hasSelected )
+
+    ( iterFeat, totalFeat, hasSelected ) = getFeatureIteratorTotal()
+    if totalFeat == 0:
+      msg = "Not have images for processing."
+      arg = ( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      self.msgBar.pushMessage( *arg )
+      return { 'isOk': False }
+
+    msg = "selected" if hasSelected else "all"
+    msg = "Processing {0} images({1})...".format( totalFeat, msg )
+    arg = ( self.msgBar, msg, totalFeat, funcKill )
+    self.mbcancel = MessageBarCancelProgressDownload( *arg )
+    self.enableRun.emit( False )
+    self.legendCatalogLayer.enabledDownload( False )
+    return { 'isOk': True, 'iterFeat': iterFeat }
+
+  def _endProcessing(self, nameProcessing, totalError):
+    self.enableRun.emit( True )
+    if self.layerTree is None:
+      self.msgBar.popWidget()
+      return
+    
+    self.legendCatalogLayer.enabledDownload()
+    
     self.msgBar.popWidget()
-    if not self.mbcancel.isCancel and numError > 0:
-      msg2 = "Has error in download (total = %d)" % numError
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg2, QgsMessageBar.CRITICAL, 8 )
+    if not self.mbcancel.isCancel and totalError > 0:
+      msg = "Has error in download (total = {0})".format( totalError )
+      arg = ( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
+      self.msgBar.pushMessage( *arg )
       return
 
-    msg2 = "Canceled %s" % msg if self.mbcancel.isCancel else "Finished %s" % msg 
+    if self.mbcancel.isCancel:
+      f_msg = "Canceled '{0}' by user"
+      typMessage = QgsMessageBar.WARNING
+    else:
+      f_msg = "Finished '{0}'"
+      typMessage = QgsMessageBar.INFO
+    
+    msg = f_msg.format( nameProcessing )
     self.msgBar.clearWidgets()
-    typMessage = QgsMessageBar.WARNING if self.mbcancel.isCancel else QgsMessageBar.INFO
-    self.msgBar.pushMessage( self.pluginName, msg2, typMessage, 4 )
+    self.msgBar.pushMessage( self.pluginName, msg, typMessage, 4 )
 
   def _setGroupCatalog(self, ltgRoot):
     ltgCatalogName = "%s - Catalog" % self.layer.name()
@@ -794,34 +821,18 @@ class CatalogPL(QObject):
     def finished( message ):
       self.thread.quit()
       self.worker.finished.disconnect( finished )
-      self.enableRun.emit( True )
-  
-      if not self.mbcancel.isCancel and self.worker.isKilled:
-        self.msgBar.popWidget()
-        msg = "Canceled by user"
-        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
-        return
-
-      self.legendCatalogLayer.enabledDownload()
-      self._endDownload( message[ 'numError' ], message[ 'msgDownload' ] )
+      self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog(ltgRoot)
 
-    ( path, total, msgDownload, iterFeat ) = self._getInitDataDownload( "TMS" )
-    if total == 0:
-      msg = "Not images for download."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
+    r = self._startProcess( self.worker.kill )
+    if not r['isOk']:
       return
-
-    self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.worker.kill )
-    msgDownload = msgDownload.replace( str( total ), 'Download_total' )
-
-    self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledDownload( False )
+    iterFeat = r['iterFeat']
 
     self.worker.finished.connect( finished )
-    self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog, msgDownload )
+    self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog )
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
@@ -836,11 +847,10 @@ class CatalogPL(QObject):
         self.messagePL = response['assets_status']
       loop.quit()
 
-    ( path, total, msgDownload, iterFeat ) = self._getInitDataDownload( "Calculate Assets Status" )
-    if total == 0:
-      msg = "Not images for calculate assets status."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
+    r = self._startProcess( self.apiPL.kill )
+    if not r['isOk']:
       return
+    iterFeat = r['iterFeat']
 
     id_meta_json = self.layer.fieldNameIndex('meta_json')
     id_meta_html = self.layer.fieldNameIndex('meta_html')
@@ -848,17 +858,15 @@ class CatalogPL(QObject):
     if not isEditable:
       self.layer.startEditing()
 
-    self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.apiPL.kill )
     loop = QEventLoop()
-    self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledDownload( False )
-    step = numError = 0
+    step = totalError = 0
     for feat in iterFeat:  
       step += 1
       self.mbcancel.step( step )
       meta_json = json.loads( feat['meta_json'] )
       ( ok, item_type ) = API_PlanetLabs.getValue( meta_json, [ 'item_type' ] )
       if not ok:
+        totalError += 1
         continue
       self.apiPL.getAssetsStatus( item_type, feat['id'], finished )
       loop.exec_()
@@ -871,24 +879,17 @@ class CatalogPL(QObject):
       self.messagePL.clear()
       self.messagePL = None
       if not self.layer.changeAttributeValue( feat.id(), id_meta_json, vjson ):
-        numError += 1
+        totalError += 1
       if not self.layer.changeAttributeValue( feat.id(), id_meta_html, meta_html ):
-        numError += 1
+        totalError += 1
 
     self.layer.commitChanges()
     if isEditable:
       self.layer.startEditing()
 
-    self.enableRun.emit( True )
-    if self.layerTree is None:
-      self.msgBar.popWidget()
-      return
-    else:
-      self.legendCatalogLayer.enabledDownload()
+    self._endProcessing( "Calculate Asset Status", totalError )
 
-    msg = msgDownload.replace( str( total ), str( step  ) ) 
-    self._endDownload( numError, msg )
-
+  ## Its is for API V0! Not update
   @pyqtSlot()
   def downloadTMS(self):
     @pyqtSlot( dict )
@@ -911,12 +912,12 @@ class CatalogPL(QObject):
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
 
       self.legendCatalogLayer.enabledDownload()
-      self._endDownload( numError, msgDownload )
+      self._endProcessing( numError, msgDownload )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog(ltgRoot)
 
-    ( path, total, msgDownload, iterFeat ) = self._getInitDataDownload( "TMS" )
+    ( path, total, msgDownload, iterFeat ) = self._getFeatureIteratorTotal( "TMS" )
     if total == 0:
       msg = "Not images for download."
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
@@ -939,84 +940,70 @@ class CatalogPL(QObject):
       if response[ 'isOk' ]:
         self.pixmap = response[ 'pixmap' ]
       else:
-        msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
+        arg = ( self.currentItem, response['message'], response['errorCode'] )
+        msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
         self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
         self.currentItem = None
         self.pixmap = None
       loop.quit()
 
-    ( path, total, msgDownload, iterFeat ) = self._getInitDataDownload( "thumbnails" )
-    if total == 0:
-      msg = "Not images for download."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
-      return
-
-    self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.apiPL.kill )
-    step = 0
-
-    suffix = u"thumbnail"
-    self.pixmap = None
-    loop = QEventLoop()
-
-    self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledDownload( False )
-    commitFeats = []
-    for feat in iterFeat:
-      step += 1
-      self.mbcancel.step( step )
-      thumbnail = os.path.join( path, u"%s_%s.png" % ( feat['id'], suffix ) )
-      commitItem = { 'fid': feat.id(), 'thumbnail': thumbnail, 'isOk': True }
-      if self.mbcancel.isCancel or self.layerTree is None :
-        step -= 1
-        break
-      if not QFile.exists( thumbnail ):
-        self.currentItem = feat['id']
-        ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
-        if not ok:
-          response = { 'isOk': False, 'errorCode': -1, 'message': item_type }
-          setFinished( response )
-          continue
+    def createThumbnails():
+      self.currentItem = feat['id']
+      arg = ( feat['meta_json'], ['item_type'] )
+      ( ok, item_type ) = API_PlanetLabs.getValue( *arg )
+      if not ok:
+        totalError += 1
+        response = { 'isOk': False, 'errorCode': -1, 'message': item_type }
+        setFinished( response )
+      else:
         self.apiPL.getThumbnail( feat['id'], item_type, setFinished )
-        loop.exec_()
-        if not self.pixmap is None:
-          isOk = self.pixmap.save( thumbnail, "PNG")
-          commitItem['isOk'] = isOk
-          del self.pixmap
-          self.pixmap = None
-        else:
-          commitItem['isOk'] = False
 
-      commitFeats.append( commitItem )
+    r = self._startProcess( self.apiPL.kill )
+    if not r['isOk']:
+        return
+    iterFeat = r['iterFeat']
 
-    self.enableRun.emit( True )
-    if self.layerTree is None:
-      self.msgBar.popWidget()
-      return
-    else:
-      self.legendCatalogLayer.enabledDownload()
-
+    totalError = step = 0
+    self.pixmap = None # Populate(self.apiPL.getThumbnail) and catch(setFinished)
     id_thumbnail = self.layer.fieldNameIndex('thumbnail')
-    step -= 1
-    numError = 0
+    path_thumbnail = self.downloadSettings['path']
     isEditable = self.layer.isEditable()
     if not isEditable:
       self.layer.startEditing()
-    for item in commitFeats:
-      if item['isOk']:
-        isOk = self.layer.changeAttributeValue( item['fid'], id_thumbnail, item['thumbnail'] )
-        if not isOk:
-          numError += 1
+    loop = QEventLoop()
+    for feat in iterFeat:
+      step += 1
+      self.mbcancel.step( step )
+      if self.mbcancel.isCancel or self.layerTree is None :
+        step -= 1
+        break
+      arg = ( path_thumbnail, u"{0}_thumbnail.png".format( feat['id'] ) )
+      file_thumbnail = os.path.join( *arg )
+      if not QFile.exists( file_thumbnail ):
+        createThumbnails()
+        loop.exec_()
+        if not self.pixmap is None:
+          isOk = self.pixmap.save( file_thumbnail, "PNG")
+          del self.pixmap
+          self.pixmap = None
+          if not isOk:
+            totalError += 1
+          else:
+            arg = ( feat.id(), id_thumbnail, file_thumbnail  ) 
+            self.layer.changeAttributeValue( *arg ) 
+        else:
+          totalError += 1
       else:
-        numError += 1
-    del commitFeats[:]
-    self.layer.commitChanges()
+        arg = ( feat.id(), id_thumbnail, file_thumbnail  )
+        self.layer.changeAttributeValue( *arg )
 
+    self.layer.commitChanges()
     if isEditable:
       self.layer.startEditing()
 
-    msg = msgDownload.replace( str( total ), str ( step  ) ) 
-    self._endDownload( numError, msg )
+    self._endProcessing( "Download Thumbnails", totalError ) 
 
+  ### Its is API V0 -> NEED UPDATE
   @pyqtSlot()
   def downloadImages(self):
     def setFinished( response ):
@@ -1052,7 +1039,7 @@ class CatalogPL(QObject):
     ltgRoot = QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog(ltgRoot)
 
-    ( path, total, msgDownload, iter ) = self._getInitDataDownload( "images" )
+    ( path, total, msgDownload, iter ) = self._getFeatureIteratorTotal( "images" )
     if total == 0:
       msg = "Not images for download."
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
@@ -1099,7 +1086,7 @@ class CatalogPL(QObject):
     self.legendCatalogLayer.enabledDownload()
     step -= 1
     msg = msgDownload.replace( str( total ), str ( step  ) ) 
-    self._endDownload( numError, msg )
+    self._endProcessing( numError, msg )
 
   @staticmethod
   def copyExpression():
