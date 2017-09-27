@@ -446,10 +446,12 @@ class CatalogPL(QObject):
     self.msgBar.pushMessage( self.pluginName, msg, typMessage, 4 )
 
   def _setGroupCatalog(self, ltgRoot):
-    ltgCatalogName = "%s - Catalog" % self.layer.name()
-    self.ltgCatalog = ltgRoot.findGroup( ltgCatalogName  )
+    nameGroup = "{0} - Catalog".format( self.layer.name() )
+    self.ltgCatalog = ltgRoot.findGroup( nameGroup  )
     if self.ltgCatalog is None:
-      self.ltgCatalog = ltgRoot.addGroup( ltgCatalogName )
+      self.ltgCatalog = ltgRoot.addGroup( nameGroup )
+    else:
+      self.ltgCatalog.removeAllChildren()
 
   def hostLive(self):
     def setFinished(response):
