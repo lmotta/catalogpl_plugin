@@ -325,6 +325,10 @@ class API_PlanetLabs(QObject):
     @pyqtSlot(dict)
     def finished( response):
       def setStatus(asset):
+        def getDateTimeFormat(d):
+          dt = datetime.datetime.strptime( d, "%Y-%m-%dT%H:%M:%S.%f")
+          return dt.strftime( formatDateTime )
+
         key = "a_{0}".format( asset )
         response['assets_status'][ key ] = {}
         r = response['assets_status'][ key ]
@@ -337,11 +341,17 @@ class API_PlanetLabs(QObject):
           permissions = ",".join( data[ asset ]['_permissions'])
           r['permissions'] = permissions
         if data[ asset ].has_key('expires_at'):
-          r['expires_at'] = data[ asset ]['expires_at']
+          r['expires_at'] = getDateTimeFormat( data[ asset ]['expires_at'] )
+        if data[ asset ].has_key('_links'):
+          if data[ asset ]['_links'].has_key('activate'):
+            r['activate'] = data[ asset ]['_links']['activate']
+        if data[ asset ].has_key('location'):
+          r['location'] = data[ asset ]['location']
 
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
-        date_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        formatDateTime = '%Y-%m-%d %H:%M:%S'
+        date_time = datetime.datetime.now().strftime( formatDateTime )
         response['assets_status'] = {
           'date_calculate': date_time,
           'url': self.currentUrl
