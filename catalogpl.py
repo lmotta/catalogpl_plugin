@@ -750,6 +750,8 @@ class CatalogPL(QObject):
       if self.layerTree is None:   
         return
 
+      self.layerTree.setVisible(Qt.Unchecked)
+      
       # self.downloadSettings setting by __init__.setLegendCatalogLayer()
       if not self.downloadSettings['isOk']:
         msg = "Please setting the Planet Labs Catalog layer"

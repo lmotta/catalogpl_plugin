@@ -244,7 +244,7 @@ class LegendCatalogLayer():
       self.legendInterface.removeLegendLayerAction( item['action'] )
 
   def setLayer(self, layer):
-    def addActionLegendLayer(labelMenu):
+    def addActionLegendLayer():
       self.legendLayer = [
         {
           'menu': u"Clear key",
@@ -259,15 +259,27 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Setting downloads",
+          'id': 'idSeparator',
+          'action': None
+        },
+        {
+          'menu': u"Search settings",
           'id': self.legendMenuIDs['setting_images'],
           'slot': self.slots['setting_images'],
+          'action': None
+        },
+        {
+          'id': 'idSeparator',
           'action': None
         },
         {
           'menu': u"Calculate Status Assets",
           'id': self.legendMenuIDs['calculate_status_assets'],
           'slot': self.slots['calculate_status_assets'],
+          'action': None
+        },
+        {
+          'id': 'idSeparator',
           'action': None
         },
         {
@@ -291,22 +303,32 @@ class LegendCatalogLayer():
       ]
 
       prefixTotal = "({0} total)".format( self.layer.featureCount() )
+      prefixIds = ( self.legendMenuIDs['create_tms'], self.legendMenuIDs['download_thumbnails'] )
       for item in self.legendLayer:
-        item['action'] = QAction( item['menu'], None )
-        item['action'].triggered.connect( item['slot'] )
-        if item['id'] == self.legendMenuIDs['setting_images']:
-          lblAction = "{0} {1}".format( item['menu'], prefixTotal )
-          item['action'].setText( lblAction )
+        if item['id'] == 'idSeparator':
+          item['action'] = QAction(None)
+          item['action'].setSeparator(True)
+        else:
+          item['action'] = QAction( item['menu'], None )
+          item['action'].triggered.connect( item['slot'] )
+          if item['id'] in prefixIds:
+            lblAction = "{0} {1}".format( item['menu'], prefixTotal )
+            item['action'].setText( lblAction )
         arg = ( item['action'], labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
         self.legendInterface.addLegendLayerAction( *arg )
         self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
 
     self.layer = layer
     self.layer.selectionChanged.connect( self.selectionChanged )
-    addActionLegendLayer( u"Planet Labs" )
+    labelMenu = u"Planet Labs"
+    addActionLegendLayer()
 
   def enabledProcessing(self, enabled=True):
-    notIds = ( self.legendMenuIDs['clear_key'], self.legendMenuIDs['clipboard_key'] )
+    notIds = (
+      'idSeparator',
+      self.legendMenuIDs['clear_key'],
+      self.legendMenuIDs['clipboard_key']
+    )
     for item in self.legendLayer:
       if item['id'] in notIds:
         continue
@@ -330,8 +352,13 @@ class LegendCatalogLayer():
       return prefixTotal
     
     prefixTotal = getPrefixTotal()
+    prefixIds = ( self.legendMenuIDs['create_tms'], self.legendMenuIDs['download_thumbnails'] )
+    totalIds = len( prefixIds )
+    countIds = 0
     for item in self.legendLayer:
-      if item['id'] == self.legendMenuIDs['setting_images']:
+      if item['id'] in prefixIds:
         lblAction = "{0} {1}".format( item['menu'], prefixTotal )
         item['action'].setText( lblAction )
-        break
+        countIds += 1
+        if countIds == totalIds:
+          break
