@@ -327,11 +327,13 @@ class CatalogPL(QObject):
          'clipboard_key': self.clipboardKey,
          'setting_images': self.settingImages,
          'calculate_status_assets': self.calculateAssetStatus,
+         'activate_assets': self.activateAssets,
          'create_tms': self.createTMS,
          'download_images': self.downloadImages,
          'download_thumbnails': self.downloadThumbnails
       }
-      self.legendCatalogLayer = LegendCatalogLayer( slots )
+      arg = ( slots, self.getTotalAssets )
+      self.legendCatalogLayer = LegendCatalogLayer( *arg )
       self.downloadSettings = DialogImageSettingPL.getDownloadSettings()
       date2 = QDate.currentDate()
       date1 = date2.addMonths( -1 )
@@ -456,6 +458,20 @@ class CatalogPL(QObject):
     else:
       self.ltgCatalog.removeAllChildren()
 
+  def _getValuesAssets(self, assets_status):
+    def getValues(asset):
+      status = assets_status[asset]['status'] # active, inactive, *Need calculate*, *None*
+      if status in ('*Need calculate*', '*None*'):
+        return { 'isOk': False, 'status': status }
+      r = { 'isOk': True, 'status': status }
+      if assets_status[asset].has_key('activate'):
+        r['activate'] = assets_status[asset]['activate']
+      if assets_status[asset].has_key('location'):
+        r['location'] = assets_status[asset]['location']
+      return r
+
+    return { 'analytic': getValues('a_analytic'), 'udm': getValues('a_udm') }
+
   def hostLive(self):
     def setFinished(response):
       self.isOkPL = response[ 'isHostLive' ]
@@ -545,7 +561,6 @@ class CatalogPL(QObject):
         self.layer.updateExtents()
 
     def populateLayer():
-
       def processScenes(json_request):
         def setFinishedPL(response):
           self.isOkPL = response['isOk']
@@ -589,7 +604,10 @@ class CatalogPL(QObject):
               vFields[ fields[1] ] = meta_json['acquired']
               del meta_json['acquired']
               vFields[ fields[2] ] = "Need download thumbnail"
-              meta_json['assets_status'] = {'analytic': '*Need calculate*', 'udm': '*Need calculate*'}
+              meta_json['assets_status'] = {
+                'a_analytic': { 'status': '*Need calculate*' },
+                'a_udm': { 'status': '*Need calculate*' }
+              }
               vFields[ fields[3] ] = API_PlanetLabs.getHtmlTreeMetadata( meta_json, '')
               vjson = json.dumps( meta_json )
               vFields[ fields[4] ] = vjson
@@ -777,6 +795,13 @@ class CatalogPL(QObject):
     checkLayerLegend()
     self.enableRun.emit( True )
 
+  def getTotalAssets(self):
+    r = {
+      'analytic': { 'images': 0, 'activate': 0 },
+      'udm':      { 'images': 0, 'activate': 0 }
+    }
+    return r
+
   @pyqtSlot(str)
   def layerWillBeRemoved(self, id):
     if not self.layerTree is None and id == self.layer.id():
@@ -846,6 +871,15 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def calculateAssetStatus(self):
+    def calculateTotalAsset(name_asset, valuesAssets):
+      asset = valuesAssets[ name_asset ]
+      if not asset['isOk']:
+        return
+      if asset['status'] == 'inactive' and asset.has_key('activate'):
+        totalAssets[ name_asset ]['activate'] += 1
+      if asset.has_key('location'):
+        totalAssets[ name_asset ]['images'] += 1
+
     @pyqtSlot( dict )
     def finished( response ):
       if self.mbcancel.isCancel:
@@ -864,7 +898,10 @@ class CatalogPL(QObject):
     isEditable = self.layer.isEditable()
     if not isEditable:
       self.layer.startEditing()
-
+    totalAssets = {
+      'analytic': { 'images': 0, 'activate': 0 },
+      'udm':      { 'images': 0, 'activate': 0 }
+    }
     loop = QEventLoop()
     step = totalError = 0
     for feat in iterFeat:  
@@ -881,6 +918,9 @@ class CatalogPL(QObject):
         step -= 1
         break
       meta_json['assets_status'] = self.messagePL
+      valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
+      calculateTotalAsset('analytic', valuesAssets )
+      calculateTotalAsset('udm', valuesAssets )
       meta_html = API_PlanetLabs.getHtmlTreeMetadata( meta_json, '')
       vjson = json.dumps( meta_json )
       self.messagePL.clear()
@@ -895,8 +935,16 @@ class CatalogPL(QObject):
       self.layer.startEditing()
 
     self._endProcessing( "Calculate Asset Status", totalError )
+    self.legendCatalogLayer.setAssetImages( totalAssets )
 
   ## Its is for API V0! Not update
+  
+  @pyqtSlot()
+  def activateAssets(self):
+    msg = "Sorry! I am working this feature for API Planet V1"
+    self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
+    return
+  
   @pyqtSlot()
   def downloadTMS(self):
     @pyqtSlot( dict )

@@ -21,14 +21,14 @@ email                : motta.luiz@gmail.com
 
 from PyQt4.QtCore import ( pyqtSlot, QSettings, QDir, QDate, QFile, QIODevice, QTimer )
 from PyQt4.QtGui  import (
-     QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox, QRadioButton, QCheckBox,
-     QDateEdit, QFileDialog, QMessageBox, QAction, QColor
+     QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox, QRadioButton,
+     QCheckBox, QDateEdit, QFileDialog, QMessageBox, QAction, QColor
 )
 from PyQt4.QtXml import QDomDocument
 
 import qgis
 from qgis.core import ( 
-     QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
+     QGis, QgsMapLayer, QgsRectangle, QgsGeometry, QgsFeatureRequest,
      QgsCoordinateReferenceSystem, QgsCoordinateTransform
 )
 from qgis.gui import ( QgsRubberBand )
@@ -224,20 +224,24 @@ class DialogImageSettingPL(QDialog):
     date1.dateChanged.connect( self.onDateChanged1 )
 
 class LegendCatalogLayer():
-
-  def __init__(self, slots):
-    self.slots = slots
+  def __init__(self, slots, getTotalAssets):
+    self.slots, self.getTotalAssets = slots, getTotalAssets
     self.legendInterface = qgis.utils.iface.legendInterface()
     self.legendMenuIDs = {
       'clear_key': 'idKey',
       'clipboard_key': 'idClipboardKey',
       'setting_images': 'idSetting',
       'calculate_status_assets': 'idCalculateStatusAssets',
+      'activate_assets': 'idActivateAssets',
       'create_tms': 'idCreateTMS',
       'download_images': 'idDownloadImages',
       'download_thumbnails': 'idDownloadThumbnails'
     }
     self.legendLayer = self.layer = None
+    self.statusEnableAssetsImage = {
+      'activate_assets': False,
+      'download_images': False
+    }
 
   def clean(self):
     for item in self.legendLayer:
@@ -273,9 +277,15 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Calculate Status Assets",
+          'menu': u"Calculate status assets",
           'id': self.legendMenuIDs['calculate_status_assets'],
           'slot': self.slots['calculate_status_assets'],
+          'action': None
+        },
+        {
+          'menu': u"Activate assets",
+          'id': self.legendMenuIDs['activate_assets'],
+          'slot': self.slots['activate_assets'],
           'action': None
         },
         {
@@ -302,8 +312,16 @@ class LegendCatalogLayer():
         }
       ]
 
-      prefixTotal = "({0} total)".format( self.layer.featureCount() )
-      prefixIds = ( self.legendMenuIDs['create_tms'], self.legendMenuIDs['download_thumbnails'] )
+      prefixs = {
+        'total':  "{0} - total".format( self.layer.featureCount() ),
+        'images': "0 analytic - 0 udm - total",
+        'assets': "0 analytic - 0 udm - total"
+      }
+      idsTotal = (
+        self.legendMenuIDs['calculate_status_assets'],
+        self.legendMenuIDs['create_tms'],
+        self.legendMenuIDs['download_thumbnails']
+      )
       for item in self.legendLayer:
         if item['id'] == 'idSeparator':
           item['action'] = QAction(None)
@@ -311,9 +329,17 @@ class LegendCatalogLayer():
         else:
           item['action'] = QAction( item['menu'], None )
           item['action'].triggered.connect( item['slot'] )
-          if item['id'] in prefixIds:
-            lblAction = "{0} {1}".format( item['menu'], prefixTotal )
+          if item['id'] in idsTotal:
+            lblAction = "{0}({1})".format( item['menu'], prefixs['total'] )
             item['action'].setText( lblAction )
+          if item['id'] == self.legendMenuIDs['download_images']:
+            lblAction = "{0}({1})".format( item['menu'], prefixs['images'] )
+            item['action'].setText( lblAction )
+            item['action'].setEnabled( False )
+          if item['id'] == self.legendMenuIDs['activate_assets']:
+            lblAction = "{0}({1})".format( item['menu'], prefixs['assets'] )
+            item['action'].setText( lblAction )
+            item['action'].setEnabled( False )
         arg = ( item['action'], labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
         self.legendInterface.addLegendLayerAction( *arg )
         self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
@@ -334,6 +360,56 @@ class LegendCatalogLayer():
         continue
       item['action'].setEnabled( enabled )
 
+    if  enabled:
+      ids = ( self.legendMenuIDs['download_images'], self.legendMenuIDs['activate_assets'] )
+      c_ids, total_ids = 0, len( ids )
+      for item in self.legendLayer:
+        if item['id'] == self.legendMenuIDs['download_images']:
+          item['action'].setEnabled( self.statusEnableAssetsImage['download_images'] )
+          c_ids += 1
+        if item['id'] == self.legendMenuIDs['activate_assets']:
+          item['action'].setEnabled( self.statusEnableAssetsImage['activate_assets'] )
+          c_ids += 1
+        if c_ids == total_ids:
+          break
+
+  def setAssetImages(self, totalAssets):
+    def getPrefixs():
+      totalFeats = self.layer.selectedFeatureCount()
+      isSelect = totalFeats > 0
+      prefix = "selected" if isSelect else "total"
+
+      arg = ( totalAssets['analytic']['images'], totalAssets['udm']['images'], prefix )
+      prefixImages = "{0} analytic - {1} udm - {2}".format( *arg )
+      arg = ( totalAssets['analytic']['activate'], totalAssets['udm']['activate'], prefix )
+      prefixAssets = "{0} analytic - {1} udm - {2}".format( *arg )
+    
+      return {
+        'images': prefixImages,
+        'assets': prefixAssets
+      }
+    
+    enable = not ( totalAssets['analytic']['images'] + totalAssets['udm']['images'] == 0 )
+    self.statusEnableAssetsImage['download_images'] = enable
+    enable = not ( totalAssets['analytic']['activate'] + totalAssets['udm']['activate'] == 0 )
+    self.statusEnableAssetsImage['activate_assets'] = enable
+    prefixs = getPrefixs()
+    ids = ( self.legendMenuIDs['download_images'], self.legendMenuIDs['activate_assets'] )
+    c_ids, total_ids = 0, len( ids )
+    for item in self.legendLayer:
+      if item['id'] == self.legendMenuIDs['download_images']:
+        lblAction = "{0} ({1})".format( item['menu'], prefixs['images'] )
+        item['action'].setText( lblAction )
+        item['action'].setEnabled( self.statusEnableAssetsImage['download_images'] )
+        c_ids += 1
+      if item['id'] == self.legendMenuIDs['activate_assets']:
+        lblAction = "{0} ({1})".format( item['menu'], prefixs['assets'] )
+        item['action'].setText( lblAction )
+        item['action'].setEnabled( self.statusEnableAssetsImage['activate_assets'] )
+        c_ids += 1
+      if c_ids == total_ids:
+        break
+
   def enabledClearKey (self, enabled=True):
     for item in self.legendLayer:
       if item['id'] == self.legendMenuIDs['clear_key']:
@@ -342,23 +418,46 @@ class LegendCatalogLayer():
 
   @pyqtSlot()
   def selectionChanged(self):
-    def getPrefixTotal():
-      total = self.layer.selectedFeatureCount()
-      prefixTotal = "({0} selected)".format( total )
-      if total == 0:
-        total = self.layer.featureCount()
-        prefixTotal = "({0} total)".format( total )
-  
-      return prefixTotal
+    def getPrefixs():
+      totalFeats = self.layer.selectedFeatureCount()
+      isSelect = totalFeats > 0
+      prefix = "selected" if isSelect else "total"
+      if not isSelect:
+        totalFeats = self.layer.featureCount()
+      
+      prefixTotal  = "{0} - {1}".format( totalFeats, prefix ) 
+      arg = ( totalAssets['analytic']['images'], totalAssets['udm']['images'], prefix )
+      prefixImages = "{0} analytic - {1} udm - {2}".format( *arg )
+      arg = ( totalAssets['analytic']['activate'], totalAssets['udm']['activate'], prefix )
+      prefixAssets = "{0} analytic - {1} udm - {2}".format( *arg )
     
-    prefixTotal = getPrefixTotal()
-    prefixIds = ( self.legendMenuIDs['create_tms'], self.legendMenuIDs['download_thumbnails'] )
-    totalIds = len( prefixIds )
-    countIds = 0
+      return {
+        'total': prefixTotal,
+        'images': prefixImages,
+        'assets': prefixAssets
+      }
+    
+    totalAssets = self.getTotalAssets()
+    enable = not ( totalAssets['analytic']['images'] + totalAssets['udm']['images'] == 0 )
+    self.statusEnableAssetsImage['download_images'] = enable
+    enable = not ( totalAssets['analytic']['activate'] + totalAssets['udm']['activate'] == 0 )
+    self.statusEnableAssetsImage['activate_assets'] = enable
+    prefixs = getPrefixs()
+    idsTotal = (
+      self.legendMenuIDs['calculate_status_assets'],
+      self.legendMenuIDs['create_tms'],
+      self.legendMenuIDs['download_thumbnails']
+    )
     for item in self.legendLayer:
-      if item['id'] in prefixIds:
-        lblAction = "{0} {1}".format( item['menu'], prefixTotal )
+      if item['id'] in idsTotal:
+        lblAction = "{0} ({1})".format( item['menu'], prefixs['total'] )
         item['action'].setText( lblAction )
-        countIds += 1
-        if countIds == totalIds:
-          break
+      if item['id'] == self.legendMenuIDs['download_images']:
+        lblAction = "{0} ({1})".format( item['menu'], prefixs['images'] )
+        item['action'].setText( lblAction )
+        item['action'].setEnabled( self.statusEnableAssetsImage['download_images'] )
+      if item['id'] == self.legendMenuIDs['activate_assets']:
+        lblAction = "{0} ({1})".format( item['menu'], prefixs['assets'] )
+        item['action'].setText( lblAction )
+        item['action'].setEnabled( self.statusEnableAssetsImage['activate_assets'] )
+
