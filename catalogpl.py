@@ -472,6 +472,15 @@ class CatalogPL(QObject):
 
     return { 'analytic': getValues('a_analytic'), 'udm': getValues('a_udm') }
 
+  def _calculateTotalAsset(self, name_asset, valuesAssets, totalAssets):
+    asset = valuesAssets[ name_asset ]
+    if not asset['isOk']:
+      return
+    if asset['status'] == 'inactive' and asset.has_key('activate'):
+      totalAssets[ name_asset ]['activate'] += 1
+    if asset.has_key('location'):
+      totalAssets[ name_asset ]['images'] += 1
+
   def hostLive(self):
     def setFinished(response):
       self.isOkPL = response[ 'isHostLive' ]
@@ -795,12 +804,30 @@ class CatalogPL(QObject):
     checkLayerLegend()
     self.enableRun.emit( True )
 
-  def getTotalAssets(self):
+  def getTotalAssets_origin(self):
     r = {
       'analytic': { 'images': 0, 'activate': 0 },
       'udm':      { 'images': 0, 'activate': 0 }
     }
     return r
+
+  def getTotalAssets(self):
+    iterFeat = self.layer.selectedFeaturesIterator()
+    if self.layer.selectedFeatureCount() == 0:
+      iterFeat = self.layer.getFeatures()
+
+    totalAssets = {
+      'analytic': { 'images': 0, 'activate': 0 },
+      'udm':      { 'images': 0, 'activate': 0 }
+    }
+    for feat in iterFeat:  
+      meta_json = json.loads( feat['meta_json'] )
+      valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
+
+      self._calculateTotalAsset('analytic', valuesAssets, totalAssets )
+      self._calculateTotalAsset('udm', valuesAssets, totalAssets )
+
+    return totalAssets 
 
   @pyqtSlot(str)
   def layerWillBeRemoved(self, id):
@@ -871,15 +898,6 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def calculateAssetStatus(self):
-    def calculateTotalAsset(name_asset, valuesAssets):
-      asset = valuesAssets[ name_asset ]
-      if not asset['isOk']:
-        return
-      if asset['status'] == 'inactive' and asset.has_key('activate'):
-        totalAssets[ name_asset ]['activate'] += 1
-      if asset.has_key('location'):
-        totalAssets[ name_asset ]['images'] += 1
-
     @pyqtSlot( dict )
     def finished( response ):
       if self.mbcancel.isCancel:
@@ -919,8 +937,8 @@ class CatalogPL(QObject):
         break
       meta_json['assets_status'] = self.messagePL
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
-      calculateTotalAsset('analytic', valuesAssets )
-      calculateTotalAsset('udm', valuesAssets )
+      self._calculateTotalAsset('analytic', valuesAssets, totalAssets )
+      self._calculateTotalAsset('udm', valuesAssets, totalAssets )
       meta_html = API_PlanetLabs.getHtmlTreeMetadata( meta_json, '')
       vjson = json.dumps( meta_json )
       self.messagePL.clear()
