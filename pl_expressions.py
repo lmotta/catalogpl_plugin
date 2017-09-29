@@ -30,16 +30,16 @@ def getValueFromMetadata(values, feature, parent):
   <p><h4>Example</h4>getValueFromMetadata( '"item_type"' )</p><p>Return: Item type</p>
   """
   if values[0].count('"') % 2 != 0:
-    raise Exception("Error! Key need double quotes: %s." % values[0] )
+    raise Exception("Catalog Planet: Error! Key need double quotes: %s." % values[0] )
   
   if len( values[0] ) < 1:
-    raise Exception("Error! Field is empty." )
+    raise Exception("Catalog Planet: Error! Field is empty." )
     
 
   name_metadata_json = 'meta_json'
   id_metadata_json = feature.fieldNameIndex( name_metadata_json )
   if id_metadata_json == -1:
-    raise Exception("Error! Need have '%s' field." % name_metadata_json )
+    raise Exception("Catalog Planet: Error! Need have '%s' field." % name_metadata_json )
 
   lstKey = map( lambda item: item.strip(), values[ 0 ].split(",") )
   lstKey = map( lambda item: item.strip('"'), lstKey )
@@ -49,7 +49,31 @@ def getValueFromMetadata(values, feature, parent):
     ( success, valueKey) = API_PlanetLabs.getValue( metadata_json, lstKey )
     if not success:
       raise Exception( valueKey )
-  except:
-    raise Exception("Error read arguments.")
+  except Exception as e:
+    raise Exception( e.message )
+
+  return valueKey
+
+@qgsfunction(args=0, group='Planet Labs')
+def getLocation(values, feature, parent):
+  """
+  <h4>Return</h4>Get value of location of  'meta_json' field
+  <p><h4>Syntax</h4>getLocation()</p>
+  <p><h4>Argument</h4>None</p>
+  <p><h4>Example</h4>getLocation()</p><p>Return: Value of location</p>
+  """
+
+  name_metadata_json = 'meta_json'
+  id_metadata_json = feature.fieldNameIndex( name_metadata_json )
+  if id_metadata_json == -1:
+    raise Exception("Catalog Planet: Error! Need have '%s' field." % name_metadata_json )
+
+  metadata_json = feature.attributes()[ id_metadata_json ] 
+  try:
+    ( success, valueKey) = API_PlanetLabs.getValue( metadata_json, 'location' )
+    if not success:
+      return "'location' not found"
+  except Exception as e:
+    pass
 
   return valueKey

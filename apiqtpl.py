@@ -432,12 +432,12 @@ class API_PlanetLabs(QObject):
     try:
       value = reduce( lambda d, k: d[ k ], [ dicMetadata ] + keys )
     except KeyError as e:
-      msgError = "Have invalid key: %s" % ' -> '.join( e_keys)
+      msgError = "Catalog Planet: Have invalid key: %s" % ' -> '.join( e_keys)
     except TypeError as e:
-      msgError = "The last key is invalid: %s" % ' -> '.join( e_keys)
+      msgError = "Catalog Planet: The last key is invalid: %s" % ' -> '.join( e_keys)
 
     if msgError is None and isinstance( value, dict):
-      msgError = "Missing key: %s" % ' -> '.join( e_keys)
+      msgError = "Catalog Planet: Missing key: %s" % ' -> '.join( e_keys)
 
     return ( True, value ) if msgError is None else ( False, msgError ) 
 
