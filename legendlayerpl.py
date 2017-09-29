@@ -21,7 +21,7 @@ email                : motta.luiz@gmail.com
 
 from PyQt4.QtCore import ( pyqtSlot, QSettings, QDir, QDate, QFile, QIODevice, QTimer )
 from PyQt4.QtGui  import (
-     QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox, QRadioButton,
+     QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox,
      QCheckBox, QDateEdit, QFileDialog, QMessageBox, QAction, QColor
 )
 from PyQt4.QtXml import QDomDocument
@@ -32,17 +32,22 @@ from qgis.core import (
      QgsCoordinateReferenceSystem, QgsCoordinateTransform
 )
 from qgis.gui import ( QgsRubberBand )
+from PyQt4.Qt import QCheckBox
 
 class DialogImageSettingPL(QDialog):
+
+  localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
 
   def __init__(self, parent, icon=None, data=None):
     def initGui():
       def setData():
-        buttonPath.setText( self.data["path"] )
-        radioVisual.setChecked( self.data["isVisual"] )
-        radioAnalytic.setChecked( not self.data["isVisual"] )
-        d1 = self.data["date1"]
-        d2 = self.data["date2"]
+        checkPlanet.setChecked( self.data['planet'] )
+        checkRapidEye.setChecked( self.data['rapideye'] )
+        checkLandsat8.setChecked( self.data['landsat8'] )
+        checkSentinel2.setChecked( self.data['sentinel2'] )
+        buttonPath.setText( self.data['path'] )
+        d1 = self.data['date1']
+        d2 = self.data['date2']
         date1.setDate( d1 )
         date2.setDate( d2 )
         date1.setMaximumDate( d2.addDays( -1 ) )
@@ -60,45 +65,52 @@ class DialogImageSettingPL(QDialog):
       self.setWindowTitle( windowTitle )
       self.setWindowIcon( icon )
 
-      grpImage = QGroupBox( "Images", self )
-      radioVisual = QRadioButton( "Visual", grpImage )
-      radioVisual.setObjectName( "rbVisual" )
-      radioAnalytic = QRadioButton( "Analytic", grpImage )
-      buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
-      buttonPath.setObjectName( "pbPath" )
+      # https://www.planet.com/docs/reference/data-api/items-assets/#item-type
+      grpImage = QGroupBox('Images', self )
+      # Names are using in _saveDataSetting()
+      checkPlanet    = QCheckBox('Planet', grpImage)
+      checkPlanet.setObjectName('planet')
+      checkRapidEye  = QCheckBox('RapidEye', grpImage)
+      checkRapidEye.setObjectName('rapideye')
+      checkLandsat8  = QCheckBox('Landsat8', grpImage)
+      checkLandsat8.setObjectName('landsat8')
+      checkSentinel2 = QCheckBox('Sentinel2', grpImage)
+      checkSentinel2.setObjectName('sentinel2')
 
-      layoutRadioButtons = QHBoxLayout()
-      for item in ( radioVisual, radioAnalytic ):
-        layoutRadioButtons.addWidget( item )
+      buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
+      buttonPath.setObjectName('path')
+
+      layoutCheckBox = QHBoxLayout()
+      for item in ( checkPlanet, checkRapidEye, checkLandsat8, checkSentinel2):
+        layoutCheckBox.addWidget( item )
 
       layoutImage = QVBoxLayout( grpImage )
-      layoutImage.addLayout( layoutRadioButtons )
+      layoutImage.addLayout( layoutCheckBox )
       layoutImage.addWidget( buttonPath )
 
-      grpDateSearch = QGroupBox( "Dates for search", self )
+      grpDateSearch = QGroupBox('Dates for search', self )
       date1 = QDateEdit( grpDateSearch )
-      date1.setObjectName( "deDate1" )
+      date1.setObjectName('deDate1')
       date2 = QDateEdit( grpDateSearch )
-      date2.setObjectName( "deDate2" )
+      date2.setObjectName('deDate2')
       for item in [ date1, date2 ]:
         item.setCalendarPopup( True )
-        format = item.displayFormat().replace( "yy", "yyyy")
+        format = item.displayFormat().replace('yy', 'yyyy')
         item.setDisplayFormat( format )
       spinDay = QSpinBox( grpDateSearch )
-      spinDay.setObjectName( "sbDay" )
+      spinDay.setObjectName('sbDay')
       spinDay.setSingleStep( 1 )
-      spinDay.setSuffix( " Days")
+      spinDay.setSuffix(' Days')
       spinDay.setRange( 1, 1000*360 )
       
       layoutDate = QHBoxLayout( grpDateSearch )
-      layoutDate.addWidget( QLabel("From", grpDateSearch ) )
+      layoutDate.addWidget( QLabel('From', grpDateSearch ) )
       layoutDate.addWidget( date1 )
-      layoutDate.addWidget( QLabel("To", grpDateSearch ) )
+      layoutDate.addWidget( QLabel('To', grpDateSearch ) )
       layoutDate.addWidget( date2 )
       layoutDate.addWidget( spinDay )
-      
 
-      buttonOK = QPushButton( "OK", self )
+      buttonOK = QPushButton('OK', self )
 
       layout = QVBoxLayout( self )
       layout.addWidget( grpImage )
@@ -110,8 +122,7 @@ class DialogImageSettingPL(QDialog):
       if not self.data is None:
         setData()
       else:
-        radioVisual.setChecked( True )
-        radioAnalytic.setChecked( False )
+        checkPlanet.setChecked( True )
         d2 = QDate.currentDate()
         d1 = d2.addMonths( -1 )
         date1.setDate( d1 )
@@ -131,14 +142,17 @@ class DialogImageSettingPL(QDialog):
     return self.data
 
   def _saveDataSetting(self):
-    localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
-    values = { 
-          'path': "{0}/path".format( localSetting ),
-          'isVisual': "{0}/isVisual".format( localSetting )
-    }
+    # Next step add all informations
+    #See __init__.initGui
+    #keys = ['path', 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2']
+
+    keys = ['path' ]
+    values = {}
+    for k in keys:
+      values[ k ] = "{0}/{1}".format( DialogImageSettingPL.localSetting, k )
     s = QSettings()
-    for key in values.keys():
-      s.setValue( values[ key ], self.data[ key ] )
+    for k in values.keys():
+      s.setValue( values[ k ], self.data[ k ] )
 
   def _setSpinDay(self,  date1, date2 ):
     spinDay = self.findChild( QSpinBox, "sbDay" )
@@ -148,44 +162,60 @@ class DialogImageSettingPL(QDialog):
 
   @staticmethod
   def getDownloadSettings():
-    localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
-    values = { 
-          'path': "%s/path" % localSetting,
-          'isVisual': "%s/isVisual" % localSetting
-    }
+    # Next step add all informations
+    #See __init__.initGui
+    #keys = ['path', 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2']
+
+    keys = ['path']
+    values = {}
+    for k in keys:
+      values[ k ] = "{0}/{1}".format( DialogImageSettingPL.localSetting, k )
     data = None
     s = QSettings()
     path = s.value( values['path'], None )
     if not path is None:
-      isVisual = s.value( values['isVisual'], None )
-      isVisual = True if isVisual == "true" else False
+      # Next step add all informations
+      # planet = s.value( values['planet'], None )
+      # planet = True if planet == "true" else False
+      # rapideye = s.value( values['rapideye'], None )
+      # rapideye = True if rapideye == "true" else False
+      # ...
+      # if QDir( path ).exists():
+      #   data = { 'isOk': True, 'path': path, 'planet': planet, 'rapideye': rapideye,... }
+
       if QDir( path ).exists():
-        data = { 'path': path, 'isVisual': isVisual, 'isOk': True }
+        data = { 'isOk': True, 'path': path }
       else:
-        data = { 'path': path, 'isOk': False }
+        data = { 'isOk': False, 'path': path }
         s.remove( values['path'] )
     else:
-      data = { 'path': "Empty", 'isOk': False }
-      
+      data = { 'isOk': False, 'path': "Empty" }
+
     return data
 
   @pyqtSlot( bool )
   def onOK(self, checked):
-    pb = self.findChild( QPushButton, "pbPath" )
+    pb = self.findChild( QPushButton, 'path' )
     path = pb.text()
     if path == self.titleSelectDirectory:
       msg = "Directory '{0}'not found".format( self.titleSelectDirectory )
       QMessageBox.information( self, "Missing directory for download", msg )
       return
 
-    rb = self.findChild( QRadioButton, "rbVisual" )
+    planet = self.findChild( QCheckBox, 'planet' )
+    rapideye = self.findChild( QCheckBox, 'rapideye' )
+    landsat8 = self.findChild( QCheckBox, 'landsat8' )
+    sentinel2 = self.findChild( QCheckBox, 'sentinel2' )
     date1 = self.findChild( QDateEdit, "deDate1" )
     date2 = self.findChild( QDateEdit, "deDate2" )
     self.data = {
-        "path": path,
-        "isVisual": rb.isChecked(),
-        "date1": date1.date(),
-        "date2": date2.date()
+        'path': path,
+        'planet': planet.isChecked(),
+        'rapideye': rapideye.isChecked(),
+        'landsat8': landsat8.isChecked(),
+        'sentinel2': sentinel2.isChecked(),       
+        'date1': date1.date(),
+        'date2': date2.date()
     }
     self._saveDataSetting()
     self.data[ 'isOk' ] = True
@@ -193,7 +223,7 @@ class DialogImageSettingPL(QDialog):
 
   @pyqtSlot( bool )
   def onPath(self, checked):
-    pb = self.findChild( QPushButton, "pbPath" )
+    pb = self.findChild( QPushButton, 'path' )
     path = pb.text()
     if path == self.titleSelectDirectory:
       path = None
@@ -224,8 +254,8 @@ class DialogImageSettingPL(QDialog):
     date1.dateChanged.connect( self.onDateChanged1 )
 
 class LegendCatalogLayer():
-  def __init__(self, slots, getTotalAssets):
-    self.slots, self.getTotalAssets = slots, getTotalAssets
+  def __init__(self, labelMenu, slots, getTotalAssets):
+    self.labelMenu, self.slots, self.getTotalAssets = labelMenu, slots, getTotalAssets
     self.legendInterface = qgis.utils.iface.legendInterface()
     self.legendMenuIDs = {
       'clear_key': 'idKey',
@@ -241,6 +271,25 @@ class LegendCatalogLayer():
     self.statusEnableAssetsImage = {
       'activate_assets': False,
       'download_images': False
+    }
+
+  def _getPrefixs(self, totalAssets):
+    totalFeats = self.layer.selectedFeatureCount()
+    isSelect = totalFeats > 0
+    prefix = "selected" if isSelect else "total"
+    if not isSelect:
+      totalFeats = self.layer.featureCount()
+    
+    prefixTotal  = "{0} - {1}".format( totalFeats, prefix ) 
+    arg = ( totalAssets['analytic']['images'], totalAssets['udm']['images'], prefix )
+    prefixImages = "{0} analytic - {1} udm - {2}".format( *arg )
+    arg = ( totalAssets['analytic']['activate'], totalAssets['udm']['activate'], prefix )
+    prefixAssets = "{0} analytic - {1} udm - {2}".format( *arg )
+  
+    return {
+      'total': prefixTotal,
+      'images': prefixImages,
+      'assets': prefixAssets
     }
 
   def clean(self):
@@ -340,13 +389,12 @@ class LegendCatalogLayer():
             lblAction = "{0}({1})".format( item['menu'], prefixs['assets'] )
             item['action'].setText( lblAction )
             item['action'].setEnabled( False )
-        arg = ( item['action'], labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
+        arg = ( item['action'], self.labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
         self.legendInterface.addLegendLayerAction( *arg )
         self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
 
     self.layer = layer
     self.layer.selectionChanged.connect( self.selectionChanged )
-    labelMenu = u"Planet Labs"
     addActionLegendLayer()
 
   def enabledProcessing(self, enabled=True):
@@ -374,26 +422,11 @@ class LegendCatalogLayer():
           break
 
   def setAssetImages(self, totalAssets):
-    def getPrefixs():
-      totalFeats = self.layer.selectedFeatureCount()
-      isSelect = totalFeats > 0
-      prefix = "selected" if isSelect else "total"
-
-      arg = ( totalAssets['analytic']['images'], totalAssets['udm']['images'], prefix )
-      prefixImages = "{0} analytic - {1} udm - {2}".format( *arg )
-      arg = ( totalAssets['analytic']['activate'], totalAssets['udm']['activate'], prefix )
-      prefixAssets = "{0} analytic - {1} udm - {2}".format( *arg )
-    
-      return {
-        'images': prefixImages,
-        'assets': prefixAssets
-      }
-    
     enable = not ( totalAssets['analytic']['images'] + totalAssets['udm']['images'] == 0 )
     self.statusEnableAssetsImage['download_images'] = enable
     enable = not ( totalAssets['analytic']['activate'] + totalAssets['udm']['activate'] == 0 )
     self.statusEnableAssetsImage['activate_assets'] = enable
-    prefixs = getPrefixs()
+    prefixs = self._getPrefixs( totalAssets )
     ids = ( self.legendMenuIDs['download_images'], self.legendMenuIDs['activate_assets'] )
     c_ids, total_ids = 0, len( ids )
     for item in self.legendLayer:
@@ -418,31 +451,12 @@ class LegendCatalogLayer():
 
   @pyqtSlot()
   def selectionChanged(self):
-    def getPrefixs():
-      totalFeats = self.layer.selectedFeatureCount()
-      isSelect = totalFeats > 0
-      prefix = "selected" if isSelect else "total"
-      if not isSelect:
-        totalFeats = self.layer.featureCount()
-      
-      prefixTotal  = "{0} - {1}".format( totalFeats, prefix ) 
-      arg = ( totalAssets['analytic']['images'], totalAssets['udm']['images'], prefix )
-      prefixImages = "{0} analytic - {1} udm - {2}".format( *arg )
-      arg = ( totalAssets['analytic']['activate'], totalAssets['udm']['activate'], prefix )
-      prefixAssets = "{0} analytic - {1} udm - {2}".format( *arg )
-    
-      return {
-        'total': prefixTotal,
-        'images': prefixImages,
-        'assets': prefixAssets
-      }
-    
     totalAssets = self.getTotalAssets()
     enable = not ( totalAssets['analytic']['images'] + totalAssets['udm']['images'] == 0 )
     self.statusEnableAssetsImage['download_images'] = enable
     enable = not ( totalAssets['analytic']['activate'] + totalAssets['udm']['activate'] == 0 )
     self.statusEnableAssetsImage['activate_assets'] = enable
-    prefixs = getPrefixs()
+    prefixs = self._getPrefixs( totalAssets )
     idsTotal = (
       self.legendMenuIDs['calculate_status_assets'],
       self.legendMenuIDs['create_tms'],

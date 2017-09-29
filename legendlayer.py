@@ -30,7 +30,7 @@ from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
 
 class LegendRaster(object):
 
-  def __init__(self, parentMenu):
+  def __init__(self, labelMenu):
     def initLegendLayer():
       self.legendLayer = [
         {
@@ -49,10 +49,10 @@ class LegendRaster(object):
       for item in self.legendLayer:
         item['action'] = QAction( item['menu'], None )
         item['action'].triggered.connect( item['slot'] )
-        self.legendInterface.addLegendLayerAction( item['action'], parentMenu, item['id'], QgsMapLayer.RasterLayer, False )
+        self.legendInterface.addLegendLayerAction( item['action'], labelMenu, item['id'], QgsMapLayer.RasterLayer, False )
 
     self.legendInterface = qgis.utils.iface.legendInterface()
-    self.legendLayer =  None
+    self.legendLayer = None
     initLegendLayer()
 
   def __del__(self):
@@ -99,8 +99,8 @@ class LegendRaster(object):
 
 class LegendTMSXml(LegendRaster):
 
-  def __init__(self, parentMenu):
-     super(LegendTMS, self).__init__( parentMenu )
+  def __init__(self, labelMenu):
+     super(LegendTMS, self).__init__( labelMenu )
 
   def _getFile(self, layer):
     doc = QDomDocument()
@@ -156,8 +156,8 @@ class LegendTMSXml(LegendRaster):
 
 class LegendTMS(LegendRaster):
 
-  def __init__(self, parentMenu):
-     super(LegendTMS, self).__init__( parentMenu )
+  def __init__(self, labelMenu):
+     super(LegendTMS, self).__init__( labelMenu )
 
   def _getExtent(self, canvas, layer):
     crsCanvas = canvas.mapSettings().destinationCrs()

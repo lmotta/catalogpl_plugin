@@ -270,7 +270,7 @@ class WorkerCreateTMS(QObject):
       lyr = QgsRasterLayer( str( uri.encodedUri() ), item_id , 'wms')
       if not lyr.isValid():
         msg = "Error create TMS from {0}: Invalid layer".format( item_id )
-        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
         totalError += 1
         return
       if not lyr.source() in sources_catalog_group:
@@ -297,7 +297,7 @@ class WorkerCreateTMS(QObject):
       ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
       if not ok:
         msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
-        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
         totalError += 1
         continue
       wkt_geom = feat.geometry().exportToWkt()
@@ -312,10 +312,10 @@ class WorkerCreateTMS(QObject):
 
 class CatalogPL(QObject):
 
-  pluginName = "Catalog Planet Labs"
-  styleFile = "pl_scenes.qml"
-  expressionFile = "pl_expressions.py"
-  expressionDir = "expressions"
+  pluginName = u'Catalog Planet Labs'
+  styleFile = 'pl_scenes.qml'
+  expressionFile = 'pl_expressions.py'
+  expressionDir = 'expressions'
 
   enableRun = pyqtSignal( bool )
   
@@ -332,13 +332,26 @@ class CatalogPL(QObject):
          'download_images': self.downloadImages,
          'download_thumbnails': self.downloadThumbnails
       }
-      arg = ( slots, self.getTotalAssets )
+      arg = ( CatalogPL.pluginName, slots, self.getTotalAssets )
       self.legendCatalogLayer = LegendCatalogLayer( *arg )
-      self.downloadSettings = DialogImageSettingPL.getDownloadSettings()
+
+    def setSearchSettings():
+      self.searchSettings = DialogImageSettingPL.getDownloadSettings()
+      
+      # Next step add all informations (DialogImageSettingPL.getDownloadSettings)
+      # 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2'
+      # planet = self.searchSettings['planet'] ...
+      # date1 = self.searchSettings['date1'] ...
+      #
+      self.searchSettings['planet']    = True
+      self.searchSettings['rapideye']  = False
+      self.searchSettings['landsat8']  = False
+      self.searchSettings['sentinel2'] = False
+
       date2 = QDate.currentDate()
       date1 = date2.addMonths( -1 )
-      self.downloadSettings['date1'] = date1 
-      self.downloadSettings['date2'] = date2
+      self.searchSettings['date1'] = date1 
+      self.searchSettings['date2'] = date2
 
     super(CatalogPL, self).__init__()
     self.canvas = iface.mapCanvas()
@@ -348,9 +361,9 @@ class CatalogPL(QObject):
     self.mainWindow = iface.mainWindow()
 
     self.apiPL = API_PlanetLabs()
-    self.mngLogin = ManagerLoginKey( "catalogpl_plugin" )
-    self.legendRaster = LegendRaster( 'Catalog Planet Labs' )
-    self.legendTMS = LegendTMS( 'Catalog Planet Labs' )
+    self.mngLogin = ManagerLoginKey('catalogpl_plugin')
+    self.legendRaster = LegendRaster( CatalogPL.pluginName )
+    self.legendTMS = LegendTMS( CatalogPL.pluginName )
     self.thread = self.worker = None # initThread
     self.mbcancel = None # Need for worker it is be class attribute
     self.isHostLive = False
@@ -360,12 +373,13 @@ class CatalogPL(QObject):
     self.hasCriticalMessage = None
     self.url_scenes = self.scenes = self.total_features_scenes = None 
     self.pixmap = self.messagePL = self.isOkPL = None
-    self.legendCatalogLayer = self.downloadSettings = None
+    self.legendCatalogLayer = self.searchSettings = None
     self.imageDownload = self.totalReady = None
     self.currentItem = None
     self.ltgCatalog = None
 
     setLegendCatalogLayer()
+    setSearchSettings()
     self._connect()
     self._initThread()
 
@@ -509,7 +523,7 @@ class CatalogPL(QObject):
 
       dataDlg = {
        'parent': self.mainWindow,
-       'windowTitle': "Catalog Planet Labs",
+       'windowTitle': CatalogPL.pluginName,
        'icon': self.icon
       }
       dataMsgBox = {
@@ -695,6 +709,16 @@ class CatalogPL(QObject):
         extent = self.canvas.extent() if crsCanvas == crsLayer else ct.transform( self.canvas.extent() )
         return json.loads( QgsGeometry.fromRect( extent ).exportToGeoJSON() )
 
+      def get_item_types():
+        keys = ('planet', 'rapideye', 'landsat8', 'sentinel2')
+        item_types = {
+          'planet':   'PSScene4Band',
+          'rapideye': 'REScene',
+          'landsat8': 'Sentinel2L1C',
+          'sentinel2': 'Landsat8L1G'
+        }
+        return [ item_types[k] for k in keys if self.searchSettings[k] ]
+
       def finished():
         self.canvas.scene().removeItem( rb )
         if not self.hasCriticalMessage:
@@ -712,8 +736,8 @@ class CatalogPL(QObject):
           msg = "Canceled the search of images. Removed %d features" % self.total_features_scenes
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, typeMessage, 4 )
 
-      date1 = self.downloadSettings['date1']
-      date2 = self.downloadSettings['date2']
+      date1 = self.searchSettings['date1']
+      date2 = self.searchSettings['date2']
       days = date1.daysTo( date2)
       date1, date2 = date1.toString( Qt.ISODate ), date2.toString( Qt.ISODate )
       sdate1 = "{0}T00:00:00.000000Z".format( date1 )
@@ -740,7 +764,7 @@ class CatalogPL(QObject):
       # 'Sentinel2L1C', 'Landsat8L1G'
       # 'SkySatScene'
       json_request = {
-        "item_types": ['PSScene4Band', 'REScene', 'Sentinel2L1C', 'Landsat8L1G'],
+        "item_types": get_item_types(),
         "filter": { "type": "AndFilter", "config": [ geometry_filter, date_range_filter ] }
       }
 
@@ -779,14 +803,14 @@ class CatalogPL(QObject):
 
       self.layerTree.setVisible(Qt.Unchecked)
       
-      # self.downloadSettings setting by __init__.setLegendCatalogLayer()
-      if not self.downloadSettings['isOk']:
+      # self.searchSettings setting by __init__.setSearchSettings()
+      if not self.searchSettings['isOk']:
         msg = "Please setting the Planet Labs Catalog layer"
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
         self.legendCatalogLayer.enabledProcessing( False )
         return
-      if not QDir( self.downloadSettings[ 'path' ] ).exists() :
-        msg = "Register directory '%s' does not exist! Please setting the Planet Labs Catalog layer" % self.downloadSettings['path']
+      if not QDir( self.searchSettings[ 'path' ] ).exists() :
+        msg = "Register directory '%s' does not exist! Please setting the Planet Labs Catalog layer" % self.searchSettings['path']
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
         self.legendCatalogLayer.enabledProcessing( False )
         return
@@ -868,10 +892,10 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def settingImages(self):
-    settings = self.downloadSettings if self.downloadSettings['isOk'] else None 
+    settings = self.searchSettings if self.searchSettings['isOk'] else None 
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
     if dlg.exec_() == QDialog.Accepted:
-      self.downloadSettings = dlg.getData()
+      self.searchSettings = dlg.getData()
       self.legendCatalogLayer.enabledProcessing()
 
   @pyqtSlot()
@@ -982,7 +1006,7 @@ class CatalogPL(QObject):
       
       if numError > 0:
         msg = "Error request: %s (Code = %d)" % ( response[ 'message' ], response[ 'errorCode' ] )
-        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
 
       self.legendCatalogLayer.enabledProcessing()
       self._endProcessing( numError, msgDownload )
@@ -1015,7 +1039,7 @@ class CatalogPL(QObject):
       else:
         arg = ( self.currentItem, response['message'], response['errorCode'] )
         msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
-        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
         self.currentItem = None
         self.pixmap = None
       loop.quit()
@@ -1039,7 +1063,7 @@ class CatalogPL(QObject):
     totalError = step = 0
     self.pixmap = None # Populate(self.apiPL.getThumbnail) and catch(setFinished)
     id_thumbnail = self.layer.fieldNameIndex('thumbnail')
-    path_thumbnail = self.downloadSettings['path']
+    path_thumbnail = self.searchSettings['path']
     isEditable = self.layer.isEditable()
     if not isEditable:
       self.layer.startEditing()
@@ -1089,7 +1113,7 @@ class CatalogPL(QObject):
         self.imageDownload.rename( '.'.join( fileName.rsplit('.')[:-1] ) )
       else:
         msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
-        self.logMessage( msg, "Catalog Planet Labs", QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
         self.currentItem = None
         self.totalReady = None
         self.imageDownload.remove()
@@ -1121,7 +1145,7 @@ class CatalogPL(QObject):
     self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.apiPL.kill, True )
     step = 1
 
-    isVisual = self.downloadSettings['isVisual']
+    isVisual = self.searchSettings['isVisual']
     suffix = u"visual" if isVisual else u"analytic"
     self.totalReady = None
     loop = QEventLoop()
