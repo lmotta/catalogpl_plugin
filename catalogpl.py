@@ -411,7 +411,7 @@ class CatalogPL(QObject):
     else:
       s['signal'].disconnect( s['slot'] )
 
-  def _startProcess(self, funcKill):
+  def _startProcess(self, funcKill, hasProgressFile=False):
     def getFeatureIteratorTotal():
       hasSelected = True
       iter = self.layer.selectedFeaturesIterator()
@@ -432,7 +432,7 @@ class CatalogPL(QObject):
 
     msg = "selected" if hasSelected else "all"
     msg = "Processing {0} images({1})...".format( totalFeat, msg )
-    arg = ( self.msgBar, msg, totalFeat, funcKill )
+    arg = ( self.msgBar, msg, totalFeat, funcKill, hasProgressFile )
     self.mbcancel = MessageBarCancelProgressDownload( *arg )
     self.enableRun.emit( False )
     self.legendCatalogLayer.enabledProcessing( False )
@@ -448,7 +448,7 @@ class CatalogPL(QObject):
     
     self.msgBar.popWidget()
     if not self.mbcancel.isCancel and totalError > 0:
-      msg = "Has error in download (total = {0})".format( totalError )
+      msg = "Has error in download (total = {0}) - See log messages".format( totalError )
       arg = ( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
       self.msgBar.pushMessage( *arg )
       return
@@ -958,6 +958,7 @@ class CatalogPL(QObject):
       loop.exec_()
       if self.mbcancel.isCancel or self.layerTree is None :
         step -= 1
+        iterFeat.close()
         break
       meta_json['assets_status'] = self.messagePL
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
@@ -983,10 +984,64 @@ class CatalogPL(QObject):
   
   @pyqtSlot()
   def activateAssets(self):
-    msg = "Sorry! I am working this feature for API Planet V1"
-    self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
-    return
-  
+    def activeAsset(asset, activate, dataLocal):
+      def setFinished( response ):
+        def hasLimiteErrorOK():
+          err = response['errorCode']
+          l1 = API_PlanetLabs.ErrorCodeLimitOK[0]-1
+          l2 = API_PlanetLabs.ErrorCodeLimitOK[1]+1
+          return err > l1 and err < l2 
+
+        if not response[ 'isOk' ] and not hasLimiteErrorOK():
+          arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
+          msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
+          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+          self.currentItem = None
+          self.isOkPL = False
+        loop.quit()
+
+      self.mbcancel.step( dataLocal['step'] )
+      if self.mbcancel.isCancel or self.layerTree is None :
+        dataLocal['step'] -= 1
+        iterFeat.close()
+        return False
+      self.currentItem = "'{0}({1})'".format( feat['id'], asset )
+      self.isOkPL = True
+      self.apiPL.activeAsset( activate, setFinished )
+      loop.exec_()
+      if not self.isOkPL:
+        dataLocal['totalError'] += 1
+      return True # Not cancel by user
+    
+    #msg = "Sorry! I am working this feature for API Planet V1"
+    #self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
+    #return
+    r = self._startProcess( self.apiPL.kill )
+    if not r['isOk']:
+      return
+    iterFeat = r['iterFeat']
+
+    dataLocal = { 'totalError': 0, 'step': 0 }
+    loop = QEventLoop()
+    for feat in iterFeat:
+      dataLocal['step'] += 1
+      meta_json = json.loads( feat['meta_json'] )
+      valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
+      asset = 'analytic'
+      if valuesAssets[ asset ]['isOk'] and \
+         valuesAssets[ asset ]['status'] == 'inactive' and \
+         valuesAssets[ asset ].has_key('activate'):
+        if not activeAsset( asset, valuesAssets[ asset ]['activate'], dataLocal ):
+          break # Cancel by user
+      asset = 'udm'
+      if valuesAssets[ asset ]['isOk'] and \
+         valuesAssets[ asset ]['status'] == 'inactive' and \
+         valuesAssets[ asset ].has_key('activate'):
+        if not activeAsset( asset, valuesAssets[ asset ]['activate'], dataLocal ):
+          break # Cancel by user
+
+    self._endProcessing( "Download Images", dataLocal['totalError'] ) 
+
   @pyqtSlot()
   def downloadTMS(self):
     @pyqtSlot( dict )
@@ -1057,7 +1112,7 @@ class CatalogPL(QObject):
 
     r = self._startProcess( self.apiPL.kill )
     if not r['isOk']:
-        return
+      return
     iterFeat = r['iterFeat']
 
     totalError = step = 0
@@ -1072,6 +1127,7 @@ class CatalogPL(QObject):
       step += 1
       self.mbcancel.step( step )
       if self.mbcancel.isCancel or self.layerTree is None :
+        iterFeat.close()
         step -= 1
         break
       arg = ( path_thumbnail, u"{0}_thumbnail.png".format( feat['id'] ) )
@@ -1100,9 +1156,8 @@ class CatalogPL(QObject):
 
     self._endProcessing( "Download Thumbnails", totalError ) 
 
-  ### Its is API V0 -> NEED UPDATE
   @pyqtSlot()
-  def downloadImages(self):
+  def downloadImages_original(self):
     def setFinished( response ):
       self.imageDownload.flush()
       self.imageDownload.close()
@@ -1184,6 +1239,81 @@ class CatalogPL(QObject):
     step -= 1
     msg = msgDownload.replace( str( total ), str ( step  ) ) 
     self._endProcessing( numError, msg )
+
+  @pyqtSlot()
+  def downloadImages(self):
+    def createImageAsset(asset, location, dataLocal, add_image=False):
+      def setFinished( response ):
+        self.imageDownload.flush()
+        self.imageDownload.close()
+        if response[ 'isOk' ]:
+          self.totalReady = response[ 'totalReady' ]
+          fileName = self.imageDownload.fileName()
+          self.imageDownload.rename( '.'.join( fileName.rsplit('.')[:-1] ) )
+        else:
+          arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
+          msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
+          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+          self.currentItem = None
+          self.totalReady = None
+          self.imageDownload.remove()
+        del self.imageDownload
+        self.imageDownload = None
+        loop.quit()
+
+      def addImage():
+        layer = QgsRasterLayer( file_image, os.path.split( file_image )[-1] )
+        QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
+        self.ltgCatalog.addLayer( layer)
+        self.legendRaster.setLayer( layer )
+  
+      arg = ( self.searchSettings['path'], u"{0}_{1}.tif".format( feat['id'], asset ) )
+      file_image = os.path.join( *arg )
+      self.mbcancel.step( dataLocal['step'], file_image )
+      if self.mbcancel.isCancel or self.layerTree is None :
+        dataLocal['step'] -= 1
+        iterFeat.close()
+        return False
+      if not QFile.exists( file_image ):
+        self.currentItem = "'{0}({1})'".format( feat['id'], asset )
+        self.imageDownload = QFile( "{0}.part".format( file_image ) )
+        self.imageDownload.open( QIODevice.WriteOnly )
+        arg = ( location, setFinished, self.imageDownload.write, self.mbcancel.stepFile )
+        self.apiPL.saveImage( *arg )
+        loop.exec_()
+        if self.totalReady is None:
+          dataLocal['totalError'] += 1
+      if add_image and not self.totalReady is None:
+        files_in_map = map( lambda item: item.layer().source(), dataLocal['ltgRoot'].findLayers() )
+        if not file_image in files_in_map:
+          addImage()
+      return True # Not cancel by user
+
+    ltgRoot = QgsProject.instance().layerTreeRoot()
+    self._setGroupCatalog(ltgRoot)
+
+    r = self._startProcess( self.apiPL.kill, True )
+    if not r['isOk']:
+      return
+    iterFeat = r['iterFeat']
+
+    dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
+    self.totalReady = None
+    loop = QEventLoop()
+    for feat in iterFeat:
+      dataLocal['step'] += 1
+      meta_json = json.loads( feat['meta_json'] )
+      valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
+      asset = 'analytic'
+      if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
+        if not createImageAsset( asset, valuesAssets[ asset ]['location'], dataLocal, True ):
+          break # Cancel by user
+      asset = 'udm'
+      if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
+        if not createImageAsset( asset, valuesAssets[ asset ]['location'], dataLocal ):
+          break # Cancel by user
+
+    self._endProcessing( "Download Images", dataLocal['totalError'] ) 
 
   @staticmethod
   def copyExpression():

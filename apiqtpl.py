@@ -224,12 +224,14 @@ class AccessSite(QObject):
 
 class API_PlanetLabs(QObject):
 
+  ErrorCodeLimitOK = (201, 207)
+  validKey = None
   urlRoot = "https://api.planet.com"
   urlQuickSearch = "https://api.planet.com/data/v1/quick-search"
   urlThumbnail = "https://api.planet.com/data/v1/item-types/{item_type}/items/{item_id}/thumb"
   urlTMS = "https://tiles.planet.com/data/v1/{item_type}/{item_id}/{{z}}/{{x}}/{{y}}.png"
   urlAssets = "https://api.planet.com/data/v1/item-types/{item_type}/items/{item_id}/assets" 
-  validKey = None
+
 
   def __init__(self):
     super( API_PlanetLabs, self ).__init__()
@@ -315,7 +317,6 @@ class API_PlanetLabs(QObject):
 
       setFinished( response )
 
-
     self.currentUrl = url
     url = QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
@@ -388,7 +389,7 @@ class API_PlanetLabs(QObject):
     self.access.finished.connect( finished )
     self.access.run( url, API_PlanetLabs.validKey, True )
 
-  def saveImage(self, jsonMetadataFeature, isVisual, setFinished, setSave, setProgress):
+  def activeAsset(self, url, setFinished):
     @pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
@@ -396,18 +397,24 @@ class API_PlanetLabs(QObject):
         self._clearResponse( response )
       setFinished( response ) # response[ 'totalReady' ]
       
-    keyVisual = 'visual' if isVisual else 'analytic'
-    keys = [ 'data', 'products', keyVisual, 'full' ]
-    ( ok, url ) = API_PlanetLabs.getValue( jsonMetadataFeature, keys )
-    if not ok:
-      response = { 'isOk': False, 'errorCode': -1, 'message': url }
-      setFinished( response )
-    else:
-      url = QUrl( url )
-      self.access.finished.connect( finished )
-      self.access.send_data.connect( setSave )
-      self.access.status_download.connect( setProgress )
-      self.access.run( url, API_PlanetLabs.validKey, False )
+    url = QUrl.fromEncoded( url )
+    url = QUrl( url )
+    self.access.finished.connect( finished )
+    self.access.run( url, API_PlanetLabs.validKey, True )
+    
+  def saveImage(self, url, setFinished, setSave, setProgress):
+    @pyqtSlot(dict)
+    def finished( response ):
+      self.access.finished.disconnect( finished )
+      if response['isOk']:
+        self._clearResponse( response )
+      setFinished( response ) # response[ 'totalReady' ]
+      
+    url = QUrl.fromEncoded( url )
+    self.access.finished.connect( finished )
+    self.access.send_data.connect( setSave )
+    self.access.status_download.connect( setProgress )
+    self.access.run( url, API_PlanetLabs.validKey, False )
 
   @staticmethod
   def getUrlFilterScenesOrtho(filters):
