@@ -1,19 +1,21 @@
 [general]
 name=Catalog Planet Labs
-description=This plugin lets you get images from the Planet Labs API.
-about=This plugin lets you get images from the Planet Labs API, by performing searches for images that intersect with the extent of the map window.
+description=This plugin lets you get images from the Planet Labs API(Version 1).
+about=This plugin lets you get images from the Planet Labs API(Version 1), by performing searches for images that intersect with the extent of the map window.
   It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
   You need a key from Planet Labs in order to use this plugin.
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
-  With this plugin, you can download full images, visual or analytic, thumbnail images or add TMS images.
-  See presentation in http://pt.slideshare.net/LuizMotta3/planetlabs-explorer-qgisplugin
+  With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
+  add TMS images.
+  See presentation: * It will be made as soon
+  Tested with QGIS 2.18.13
 version=1.0
 qgisMinimumVersion=2.18
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
 changelog=1.0
-  - Start update to API Planet V1
+  - Updated to API Planet V1
   0.8
   - Fixed message when error download and add message log for errors
   0.7
@@ -34,7 +36,7 @@ changelog=1.0
 
 tags=catalog,raster, satellite, Planet Labs
 homepage=https://github.com/lmotta/catalogpl_plugin
-tracker=http://hub.qgis.org/projects/catalogpl
+tracker=https://github.com/lmotta/catalogpl_plugin
 repository=https://github.com/lmotta/catalogpl_plugin
 icon=catalogpl.svg
 experimental=True
