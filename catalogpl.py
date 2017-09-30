@@ -495,6 +495,18 @@ class CatalogPL(QObject):
     if asset.has_key('location'):
       totalAssets[ name_asset ]['images'] += 1
 
+  def _hasLimiteErrorOK(self, response):
+    err = response['errorCode']
+    l1 = API_PlanetLabs.errorCodeLimitOK[0]-1
+    l2 = API_PlanetLabs.errorCodeLimitOK[1]+1
+    return err > l1 and err < l2 
+
+  def _hasErrorDownloads(self, response):
+    if response['errorCode'] in API_PlanetLabs.errorCodeDownloads.keys():
+      msg = API_PlanetLabs.errorCodeDownloads[ response['errorCode'] ]
+      return { 'isOk': True, 'message': msg }
+    return { 'isOk': False }
+
   def hostLive(self):
     def setFinished(response):
       self.isOkPL = response[ 'isHostLive' ]
@@ -986,15 +998,14 @@ class CatalogPL(QObject):
   def activateAssets(self):
     def activeAsset(asset, activate, dataLocal):
       def setFinished( response ):
-        def hasLimiteErrorOK():
-          err = response['errorCode']
-          l1 = API_PlanetLabs.ErrorCodeLimitOK[0]-1
-          l2 = API_PlanetLabs.ErrorCodeLimitOK[1]+1
-          return err > l1 and err < l2 
-
-        if not response[ 'isOk' ] and not hasLimiteErrorOK():
-          arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
-          msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
+        if not response[ 'isOk' ] and not self._hasLimiteErrorOK(response ):
+          r =  self._hasErrorDownloads(response)
+          if r['isOk']:
+            arg = ( self.currentItem, r['message'] )
+            msg = "Error request for {0}: {1}".format( *arg )
+          else:
+            arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
+            msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
           self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
           self.currentItem = None
           self.isOkPL = False
@@ -1246,17 +1257,23 @@ class CatalogPL(QObject):
       def setFinished( response ):
         self.imageDownload.flush()
         self.imageDownload.close()
-        if response[ 'isOk' ]:
+        if not response[ 'isOk' ] and not self._hasLimiteErrorOK(response ):
+          r =  self._hasErrorDownloads(response)
+          if r['isOk']:
+            arg = ( self.currentItem, r['message'] )
+            msg = "Error request for {0}: {1}".format( *arg )
+          else:
+            arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
+            msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
+          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+          self.currentItem = None
+          self.isOkPL = False
+          self.totalReady = None
+          self.imageDownload.remove()
+        else:
           self.totalReady = response[ 'totalReady' ]
           fileName = self.imageDownload.fileName()
           self.imageDownload.rename( '.'.join( fileName.rsplit('.')[:-1] ) )
-        else:
-          arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
-          msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
-          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
-          self.currentItem = None
-          self.totalReady = None
-          self.imageDownload.remove()
         del self.imageDownload
         self.imageDownload = None
         loop.quit()
@@ -1274,6 +1291,7 @@ class CatalogPL(QObject):
         dataLocal['step'] -= 1
         iterFeat.close()
         return False
+      self.isOkPL = True
       if not QFile.exists( file_image ):
         self.currentItem = "'{0}({1})'".format( feat['id'], asset )
         self.imageDownload = QFile( "{0}.part".format( file_image ) )
@@ -1281,9 +1299,9 @@ class CatalogPL(QObject):
         arg = ( location, setFinished, self.imageDownload.write, self.mbcancel.stepFile )
         self.apiPL.saveImage( *arg )
         loop.exec_()
-        if self.totalReady is None:
+        if not self.isOkPL:
           dataLocal['totalError'] += 1
-      if add_image and not self.totalReady is None:
+      if add_image and self.isOkPL:
         files_in_map = map( lambda item: item.layer().source(), dataLocal['ltgRoot'].findLayers() )
         if not file_image in files_in_map:
           addImage()

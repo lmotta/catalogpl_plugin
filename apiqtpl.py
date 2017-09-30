@@ -224,7 +224,10 @@ class AccessSite(QObject):
 
 class API_PlanetLabs(QObject):
 
-  ErrorCodeLimitOK = (201, 207)
+  errorCodeLimitOK = (201, 207) # https://en.wikipedia.org/wiki/List_of_HTTP_status_codes (2107-09-30)
+  errorCodeDownloads =  { # Planet DOC (2107-09-30)
+    299: 'Download quota has been exceeded'
+  } 
   validKey = None
   urlRoot = "https://api.planet.com"
   urlQuickSearch = "https://api.planet.com/data/v1/quick-search"
