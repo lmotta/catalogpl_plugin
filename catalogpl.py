@@ -570,7 +570,6 @@ class CatalogPL(QObject):
     self.enableRun.emit( True )
 
   def createLayerScenes(self):
-
     def createLayer():
       atts = [
         "id:string(25)", "acquired:string(35)", "thumbnail:string(2000)",
@@ -761,25 +760,24 @@ class CatalogPL(QObject):
       rb = createRubberBand() # Show Rectangle of Query (coordinate in pixel)
       # JSon request
       geometry_filter = {
-        "type": "GeometryFilter",
-        "field_name": "geometry",
-        "config": extentFilter()
+        'type': 'GeometryFilter',
+        'field_name': 'geometry',
+        'config': extentFilter()
       }
       date_range_filter = {
-        "type": "DateRangeFilter",
-        "field_name": "acquired",
-        "config": { "gte": sdate1, "lte": sdate2 }
+        'type': 'DateRangeFilter',
+        'field_name': 'acquired',
+        'config': { 'gte': sdate1, 'lte': sdate2 }
       }
-      # item_types:
-      # 'PSScene4Band', 'PSScene3Band', 'PSOrthoTile'
-      # 'REScene', 'REOrthoTile'
-      # 'Sentinel2L1C', 'Landsat8L1G'
-      # 'SkySatScene'
+      permission_filter = {
+        'type': 'PermissionFilter',
+        'config': ['assets.analytic:download'] 
+      }
+      config = [ geometry_filter, date_range_filter, permission_filter ] 
       json_request = {
         "item_types": get_item_types(),
-        "filter": { "type": "AndFilter", "config": [ geometry_filter, date_range_filter ] }
+        "filter": { "type": "AndFilter", "config": config }
       }
-
       processScenes( json_request )
       if self.hasCriticalMessage:
         self.canvas.scene().removeItem( rb )
