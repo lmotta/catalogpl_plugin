@@ -55,7 +55,7 @@ def getValueFromMetadata(values, feature, parent):
   return valueKey
 
 @qgsfunction(args=0, group='Planet Labs')
-def getLocation(values, feature, parent):
+def getLocationAnalytic(values, feature, parent):
   """
   <h4>Return</h4>Get value of location of  'meta_json' field
   <p><h4>Syntax</h4>getLocation()</p>
@@ -68,9 +68,35 @@ def getLocation(values, feature, parent):
   if id_metadata_json == -1:
     raise Exception("Catalog Planet: Error! Need have '%s' field." % name_metadata_json )
 
-  metadata_json = feature.attributes()[ id_metadata_json ] 
+  metadata_json = feature.attributes()[ id_metadata_json ]
+  lstKey = ['assets_status','a_analytic','location'] 
   try:
-    ( success, valueKey) = API_PlanetLabs.getValue( metadata_json, 'location' )
+    ( success, valueKey) = API_PlanetLabs.getValue( metadata_json, lstKey )
+    if not success:
+      return "'location' not found"
+  except Exception as e:
+    pass
+
+  return valueKey
+
+@qgsfunction(args=0, group='Planet Labs')
+def getLocationUDM(values, feature, parent):
+  """
+  <h4>Return</h4>Get value of location of  'meta_json' field
+  <p><h4>Syntax</h4>getLocation()</p>
+  <p><h4>Argument</h4>None</p>
+  <p><h4>Example</h4>getLocation()</p><p>Return: Value of location</p>
+  """
+
+  name_metadata_json = 'meta_json'
+  id_metadata_json = feature.fieldNameIndex( name_metadata_json )
+  if id_metadata_json == -1:
+    raise Exception("Catalog Planet: Error! Need have '%s' field." % name_metadata_json )
+
+  metadata_json = feature.attributes()[ id_metadata_json ]
+  lstKey = ['assets_status','a_udm','location'] 
+  try:
+    ( success, valueKey) = API_PlanetLabs.getValue( metadata_json, lstKey )
     if not success:
       return "'location' not found"
   except Exception as e:

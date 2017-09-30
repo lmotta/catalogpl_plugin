@@ -714,8 +714,8 @@ class CatalogPL(QObject):
         item_types = {
           'planet':   'PSScene4Band',
           'rapideye': 'REScene',
-          'landsat8': 'Sentinel2L1C',
-          'sentinel2': 'Landsat8L1G'
+          'landsat8': 'Landsat8L1G',
+          'sentinel2': 'Sentinel2L1C'
         }
         return [ item_types[k] for k in keys if self.searchSettings[k] ]
 
