@@ -48,13 +48,15 @@ class AccessSite(QObject):
 
   def __init__(self):
     super( AccessSite, self ).__init__()
-    self.networkAccess = QNetworkAccessManager( self )
+    self.networkAccess = QNetworkAccessManager(self)
     self.totalReady = self.reply = self.triedAuthentication = self.isKilled = None
     # Input by self.run
-    self.key = self.responseAllFinished = None
+    self.credential = self.responseAllFinished = None
 
-  def run(self, url, key='', responseAllFinished=False, json_request=None):
-    ( self.key, self.responseAllFinished ) = ( key, responseAllFinished )
+  def run(self, url, credential=None, responseAllFinished=True, json_request=None):
+    if credential is None:
+      credential = {'user': '', 'password': ''}
+    ( self.credential, self.responseAllFinished ) = ( credential, responseAllFinished )
     self._connect()
     self.totalReady = 0
     self.isKilled = False
@@ -177,8 +179,8 @@ class AccessSite(QObject):
   @pyqtSlot('QNetworkReply', 'QAuthenticator')
   def authenticationRequired (self, reply, authenticator):
     if not self.triedAuthentication: 
-      authenticator.setUser( self.key )
-      authenticator.setPassword ('')
+      authenticator.setUser( self.credential['user'] ) 
+      authenticator.setPassword( self.credential['password'] )
       self.triedAuthentication = True
     else:
       self._errorCodeAttribute( 401 )
@@ -273,7 +275,8 @@ class API_PlanetLabs(QObject):
     self.currentUrl = API_PlanetLabs.urlRoot
     url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
-    self.access.run( url, '', True ) # Send all data in finished
+    credential = { 'user': '', 'password': ''}
+    self.access.run( url, credential )
 
   def setKey(self, key, setFinished):
     @pyqtSlot(dict)
@@ -288,7 +291,8 @@ class API_PlanetLabs(QObject):
     self.currentUrl = API_PlanetLabs.urlRoot
     url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
-    self.access.run( url, key, True ) # Send all data in finished
+    credential = { 'user': key, 'password': ''}
+    self.access.run( url, credential )
 
   def getUrlScenes(self, json_request, setFinished):
     @pyqtSlot(dict)
@@ -307,7 +311,8 @@ class API_PlanetLabs(QObject):
     self.currentUrl = API_PlanetLabs.urlQuickSearch
     url = QUrl( self.currentUrl )
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True, json_request )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential, json_request=json_request )
 
   def getScenes(self, url, setFinished):
     @pyqtSlot(dict)
@@ -324,7 +329,8 @@ class API_PlanetLabs(QObject):
     self.currentUrl = url
     url = QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential )
 
   def getAssetsStatus(self, item_type, item_id, setFinished):
     @pyqtSlot(dict)
@@ -373,7 +379,8 @@ class API_PlanetLabs(QObject):
     url = QUrl.fromEncoded( url )
 
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential )
 
   def getThumbnail(self, item_id, item_type, setFinished):
     @pyqtSlot(dict)
@@ -391,7 +398,8 @@ class API_PlanetLabs(QObject):
     self.currentUrl = url
     url = QUrl( url )
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential )
 
   def activeAsset(self, url, setFinished):
     @pyqtSlot(dict)
@@ -404,7 +412,8 @@ class API_PlanetLabs(QObject):
     url = QUrl.fromEncoded( url )
     url = QUrl( url )
     self.access.finished.connect( finished )
-    self.access.run( url, API_PlanetLabs.validKey, True )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential )
     
   def saveImage(self, url, setFinished, setSave, setProgress):
     @pyqtSlot(dict)
@@ -418,7 +427,8 @@ class API_PlanetLabs(QObject):
     self.access.finished.connect( finished )
     self.access.send_data.connect( setSave )
     self.access.status_download.connect( setProgress )
-    self.access.run( url, API_PlanetLabs.validKey, False )
+    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    self.access.run( url, credential, False )
 
   @staticmethod
   def getUrlFilterScenesOrtho(filters):
