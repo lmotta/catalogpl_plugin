@@ -227,7 +227,7 @@ class API_PlanetLabs(QObject):
   errorCodeLimitOK = (201, 207) # https://en.wikipedia.org/wiki/List_of_HTTP_status_codes (2107-09-30)
   errorCodeDownloads =  { # Planet DOC (2107-09-30)
     299: 'Download quota has been exceeded',
-    429: 'Request has been denied due to exceeding rate limits. Try again'
+    429: 'Request has been denied due to exceeding rate limits.'
   } 
   validKey = None
   urlRoot = "https://api.planet.com"

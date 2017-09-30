@@ -504,6 +504,7 @@ class CatalogPL(QObject):
   def _hasErrorDownloads(self, response):
     if response['errorCode'] in API_PlanetLabs.errorCodeDownloads.keys():
       msg = API_PlanetLabs.errorCodeDownloads[ response['errorCode'] ]
+      msg = "{0}(code {1})".format( msg, response['errorCode'] )
       return { 'isOk': True, 'message': msg }
     return { 'isOk': False }
 
@@ -1049,7 +1050,7 @@ class CatalogPL(QObject):
         if not activeAsset( asset, valuesAssets[ asset ]['activate'], dataLocal ):
           break # Cancel by user
 
-    self._endProcessing( "Download Images", dataLocal['totalError'] ) 
+    self._endProcessing( "Activate assets", dataLocal['totalError'] ) 
 
   @pyqtSlot()
   def downloadTMS(self):
