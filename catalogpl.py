@@ -767,7 +767,8 @@ class CatalogPL(QObject):
         'type': 'PermissionFilter',
         'config': ['assets.analytic:download'] 
       }
-      config = [ geometry_filter, date_range_filter, permission_filter ] 
+      #config = [ geometry_filter, date_range_filter, permission_filter ] 
+      config = [ geometry_filter, date_range_filter ]
       json_request = {
         "item_types": get_item_types(),
         "filter": { "type": "AndFilter", "config": config }
