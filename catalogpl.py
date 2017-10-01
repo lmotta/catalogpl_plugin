@@ -336,18 +336,11 @@ class CatalogPL(QObject):
       self.legendCatalogLayer = LegendCatalogLayer( *arg )
 
     def setSearchSettings():
-      self.searchSettings = DialogImageSettingPL.getDownloadSettings()
+      self.searchSettings = DialogImageSettingPL.getSettings()
       
-      # Next step add all informations (DialogImageSettingPL.getDownloadSettings)
-      # 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2'
-      # planet = self.searchSettings['planet'] ...
-      # date1 = self.searchSettings['date1'] ...
-      #
-      self.searchSettings['planet']    = True
-      self.searchSettings['rapideye']  = False
-      self.searchSettings['landsat8']  = False
-      self.searchSettings['sentinel2'] = False
-
+      # Next step add all informations (DialogImageSettingPL.getSettings)
+      self.searchSettings['current_asset'] = 'planet'
+      self.searchSettings['udm'] = False
       date2 = QDate.currentDate()
       date1 = date2.addMonths( -1 )
       self.searchSettings['date1'] = date1 
@@ -722,14 +715,14 @@ class CatalogPL(QObject):
         return json.loads( QgsGeometry.fromRect( extent ).exportToGeoJSON() )
 
       def get_item_types():
-        keys = ('planet', 'rapideye', 'landsat8', 'sentinel2')
+        # Same list of DialogImageSettingPL.nameAssets
         item_types = {
           'planet':   'PSScene4Band',
           'rapideye': 'REScene',
           'landsat8': 'Landsat8L1G',
           'sentinel2': 'Sentinel2L1C'
         }
-        return [ item_types[k] for k in keys if self.searchSettings[k] ]
+        return [ item_types[ self.searchSettings['current_asset'] ] ]
 
       def finished():
         self.canvas.scene().removeItem( rb )
@@ -838,13 +831,6 @@ class CatalogPL(QObject):
     self.legendCatalogLayer.setLayer( self.layer )
     checkLayerLegend()
     self.enableRun.emit( True )
-
-  def getTotalAssets_origin(self):
-    r = {
-      'analytic': { 'images': 0, 'activate': 0 },
-      'udm':      { 'images': 0, 'activate': 0 }
-    }
-    return r
 
   def getTotalAssets(self):
     iterFeat = self.layer.selectedFeaturesIterator()
@@ -1167,92 +1153,8 @@ class CatalogPL(QObject):
     self._endProcessing( "Download Thumbnails", totalError ) 
 
   @pyqtSlot()
-  def downloadImages_original(self):
-    def setFinished( response ):
-      self.imageDownload.flush()
-      self.imageDownload.close()
-
-      if response[ 'isOk' ]:
-        self.totalReady = response[ 'totalReady' ]
-        fileName = self.imageDownload.fileName()
-        self.imageDownload.rename( '.'.join( fileName.rsplit('.')[:-1] ) )
-      else:
-        msg = "Error request for %s: %s (Code = %d)" % ( self.currentItem, response[ 'message' ], response[ 'errorCode' ] )
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
-        self.currentItem = None
-        self.totalReady = None
-        self.imageDownload.remove()
-
-      del self.imageDownload
-      self.imageDownload = None
-      loop.quit()
-
-    def addImage():
-      if not image in map( lambda item: item.layer().source(), ltgRoot.findLayers() ):
-        layer = QgsRasterLayer( image, os.path.split( image )[-1] )
-        QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
-        self.ltgCatalog.addLayer( layer)
-        self.legendRaster.setLayer( layer )
-
-    msg = "Sorry! I am working this feature for API Planet V1"
-    self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
-    return
-    
-    ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog(ltgRoot)
-
-    ( path, total, msgDownload, iter ) = self._getFeatureIteratorTotal( "images" )
-    if total == 0:
-      msg = "Not images for download."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
-      return
-
-    self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.apiPL.kill, True )
-    step = 1
-
-    isVisual = self.searchSettings['isVisual']
-    suffix = u"visual" if isVisual else u"analytic"
-    self.totalReady = None
-    loop = QEventLoop()
-
-    self.enableRun.emit( False )
-    self.legendCatalogLayer.enabledProcessing( False )
-    numError = 0
-    for feat in iter:
-      image = os.path.join( path, u"%s_%s.tif" % ( feat['id'], suffix ) )
-      self.mbcancel.step( step, image )
-      if self.mbcancel.isCancel or self.layerTree is None :
-        step -= 1
-        iter.close()
-        break
-      if not QFile.exists( image ):
-        self.currentItem = feat['id']
-        self.imageDownload = QFile( "%s.part" % image )
-        self.imageDownload.open( QIODevice.WriteOnly )
-        json = feat['meta_json']
-        self.apiPL.saveImage( json, isVisual, setFinished, self.imageDownload.write, self.mbcancel.stepFile )
-        loop.exec_()
-        if self.totalReady is None:
-          numError += 1
-        else:
-          addImage()
-      else:
-        addImage()
-      step += 1
-
-    self.enableRun.emit( True )
-    if self.layerTree is None:
-      self.msgBar.popWidget()
-      return
-
-    self.legendCatalogLayer.enabledProcessing()
-    step -= 1
-    msg = msgDownload.replace( str( total ), str ( step  ) ) 
-    self._endProcessing( numError, msg )
-
-  @pyqtSlot()
   def downloadImages(self):
-    def createImageAsset(asset, location, dataLocal, add_image=False):
+    def createImage(suffix, location, dataLocal, add_image=False):
       def setFinished( response ):
         self.imageDownload.flush()
         self.imageDownload.close()
@@ -1283,7 +1185,7 @@ class CatalogPL(QObject):
         self.ltgCatalog.addLayer( layer)
         self.legendRaster.setLayer( layer )
   
-      arg = ( self.searchSettings['path'], u"{0}_{1}.tif".format( feat['id'], asset ) )
+      arg = ( self.searchSettings['path'], u"{0}_{1}.tif".format( feat['id'], suffix ) )
       file_image = os.path.join( *arg )
       self.mbcancel.step( dataLocal['step'], file_image )
       if self.mbcancel.isCancel or self.layerTree is None :
@@ -1292,7 +1194,7 @@ class CatalogPL(QObject):
         return False
       self.isOkPL = True
       if not QFile.exists( file_image ):
-        self.currentItem = "'{0}({1})'".format( feat['id'], asset )
+        self.currentItem = "'{0}({1})'".format( feat['id'], suffix )
         self.imageDownload = QFile( "{0}.part".format( file_image ) )
         self.imageDownload.open( QIODevice.WriteOnly )
         arg = ( location, setFinished, self.imageDownload.write, self.mbcancel.stepFile )
@@ -1323,12 +1225,13 @@ class CatalogPL(QObject):
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
       asset = 'analytic'
       if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-        if not createImageAsset( asset, valuesAssets[ asset ]['location'], dataLocal, True ):
+        if not createImage( asset, valuesAssets[ asset ]['location'], dataLocal, True ):
           break # Cancel by user
-      asset = 'udm'
-      if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-        if not createImageAsset( asset, valuesAssets[ asset ]['location'], dataLocal ):
-          break # Cancel by user
+      if self.searchSettings['udm']:
+        asset = 'udm'
+        if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
+          if not createImage( asset, valuesAssets[ asset ]['location'], dataLocal ):
+            break # Cancel by user
 
     self._endProcessing( "Download Images", dataLocal['totalError'] ) 
 

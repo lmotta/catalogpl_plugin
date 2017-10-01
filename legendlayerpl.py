@@ -22,7 +22,7 @@ email                : motta.luiz@gmail.com
 from PyQt4.QtCore import ( pyqtSlot, QSettings, QDir, QDate, QFile, QIODevice, QTimer )
 from PyQt4.QtGui  import (
      QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox,
-     QCheckBox, QDateEdit, QFileDialog, QMessageBox, QAction, QColor
+     QCheckBox, QRadioButton, QDateEdit, QFileDialog, QMessageBox, QAction, QColor
 )
 from PyQt4.QtXml import QDomDocument
 
@@ -41,10 +41,9 @@ class DialogImageSettingPL(QDialog):
   def __init__(self, parent, icon=None, data=None):
     def initGui():
       def setData():
-        checkPlanet.setChecked( self.data['planet'] )
-        checkRapidEye.setChecked( self.data['rapideye'] )
-        checkLandsat8.setChecked( self.data['landsat8'] )
-        checkSentinel2.setChecked( self.data['sentinel2'] )
+        w = self.findChild( QRadioButton, self.data['current_asset'] )
+        w.setChecked(True)
+        checkUdm.setChecked( self.data['udm'] )
         buttonPath.setText( self.data['path'] )
         d1 = self.data['date1']
         d2 = self.data['date2']
@@ -61,54 +60,60 @@ class DialogImageSettingPL(QDialog):
         date2.dateChanged.connect( self.onDateChanged2 )
         spinDay.valueChanged.connect( self.onValueChanged )
 
+      def createCheckBox(text, objName, group, layout=None):
+        widget = QCheckBox( text, group )
+        widget.setObjectName( objName )
+        if not layout is None:
+          layout.addWidget( widget )
+        return widget
+
+      def createDateEdit(labelName, objName, group, layout):
+        label = QLabel( labelName, group )
+        layout.addWidget( label )
+        widget = QDateEdit( group )
+        widget.setObjectName( objName )
+        widget.setCalendarPopup( True )
+        format = widget.displayFormat().replace('yy', 'yyyy')
+        widget.setDisplayFormat( format )
+        layout.addWidget( widget )
+        return widget
+
+      def createRadioButton(text, objName, group, layout=None):
+        widget = QRadioButton( text, group )
+        widget.setObjectName( objName )
+        if not layout is None:
+          layout.addWidget( widget )
+
       windowTitle = "Setting download images Planet Labs"
       self.setWindowTitle( windowTitle )
       self.setWindowIcon( icon )
 
-      # https://www.planet.com/docs/reference/data-api/items-assets/#item-type
       grpImage = QGroupBox('Images', self )
-      # Names are using in _saveDataSetting()
-      checkPlanet    = QCheckBox('Planet', grpImage)
-      checkPlanet.setObjectName('planet')
-      checkRapidEye  = QCheckBox('RapidEye', grpImage)
-      checkRapidEye.setObjectName('rapideye')
-      checkLandsat8  = QCheckBox('Landsat8', grpImage)
-      checkLandsat8.setObjectName('landsat8')
-      checkSentinel2 = QCheckBox('Sentinel2', grpImage)
-      checkSentinel2.setObjectName('sentinel2')
+      # https://www.planet.com/docs/reference/data-api/items-assets/#item-type
+      lytAssets = QHBoxLayout()
+      for name in self.nameAssets:
+        createRadioButton( name.capitalize(), name, grpImage, lytAssets )
+
+      checkUdm = createCheckBox( 'Save UDM(Unusable Data Mask)', 'udm', grpImage )
 
       buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
       buttonPath.setObjectName('path')
 
-      layoutCheckBox = QHBoxLayout()
-      for item in ( checkPlanet, checkRapidEye, checkLandsat8, checkSentinel2):
-        layoutCheckBox.addWidget( item )
-
-      layoutImage = QVBoxLayout( grpImage )
-      layoutImage.addLayout( layoutCheckBox )
-      layoutImage.addWidget( buttonPath )
+      lytImage = QVBoxLayout( grpImage )
+      lytImage.addLayout( lytAssets )
+      lytImage.addWidget( checkUdm )
+      lytImage.addWidget( buttonPath )
 
       grpDateSearch = QGroupBox('Dates for search', self )
-      date1 = QDateEdit( grpDateSearch )
-      date1.setObjectName('deDate1')
-      date2 = QDateEdit( grpDateSearch )
-      date2.setObjectName('deDate2')
-      for item in [ date1, date2 ]:
-        item.setCalendarPopup( True )
-        format = item.displayFormat().replace('yy', 'yyyy')
-        item.setDisplayFormat( format )
+      lytDate = QHBoxLayout( grpDateSearch )
+      date1 = createDateEdit('From', 'deDate1', grpDateSearch, lytDate )
+      date2 = createDateEdit('To', 'deDate2', grpDateSearch, lytDate )
       spinDay = QSpinBox( grpDateSearch )
       spinDay.setObjectName('sbDay')
       spinDay.setSingleStep( 1 )
       spinDay.setSuffix(' Days')
       spinDay.setRange( 1, 1000*360 )
-      
-      layoutDate = QHBoxLayout( grpDateSearch )
-      layoutDate.addWidget( QLabel('From', grpDateSearch ) )
-      layoutDate.addWidget( date1 )
-      layoutDate.addWidget( QLabel('To', grpDateSearch ) )
-      layoutDate.addWidget( date2 )
-      layoutDate.addWidget( spinDay )
+      lytDate.addWidget( spinDay )
 
       buttonOK = QPushButton('OK', self )
 
@@ -122,7 +127,8 @@ class DialogImageSettingPL(QDialog):
       if not self.data is None:
         setData()
       else:
-        checkPlanet.setChecked( True )
+        w = self.findChild( QRadioButton, 'planet' )
+        w.setChecked( True )
         d2 = QDate.currentDate()
         d1 = d2.addMonths( -1 )
         date1.setDate( d1 )
@@ -136,6 +142,7 @@ class DialogImageSettingPL(QDialog):
     super( DialogImageSettingPL, self ).__init__( parent )
     self.data = data
     self.titleSelectDirectory = "Select download directory"
+    self.nameAssets = ('planet', 'rapideye', 'landsat8', 'sentinel2')
     initGui()
 
   def getData(self):
@@ -144,7 +151,7 @@ class DialogImageSettingPL(QDialog):
   def _saveDataSetting(self):
     # Next step add all informations
     #See __init__.initGui
-    #keys = ['path', 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2']
+    #keys = ['path', 'planet', 'rapideye', 'landsat8', 'sentinel2', 'udm', 'date1', 'date2']
 
     keys = ['path' ]
     values = {}
@@ -161,7 +168,7 @@ class DialogImageSettingPL(QDialog):
     spinDay.valueChanged.connect( self.onValueChanged )
 
   @staticmethod
-  def getDownloadSettings():
+  def getSettings():
     # Next step add all informations
     #See __init__.initGui
     #keys = ['path', 'planet', 'rapideye', 'landsat8', 'sentinel2', 'date1', 'date2']
@@ -195,30 +202,30 @@ class DialogImageSettingPL(QDialog):
 
   @pyqtSlot( bool )
   def onOK(self, checked):
+    def getCurrentNameAsset():
+      for name in self.nameAssets:
+        w = self.findChild( QRadioButton, name )
+        if w.isChecked():
+          return name
+
     pb = self.findChild( QPushButton, 'path' )
     path = pb.text()
     if path == self.titleSelectDirectory:
       msg = "Directory '{0}'not found".format( self.titleSelectDirectory )
       QMessageBox.information( self, "Missing directory for download", msg )
       return
-
-    planet = self.findChild( QCheckBox, 'planet' )
-    rapideye = self.findChild( QCheckBox, 'rapideye' )
-    landsat8 = self.findChild( QCheckBox, 'landsat8' )
-    sentinel2 = self.findChild( QCheckBox, 'sentinel2' )
+    udm = self.findChild( QCheckBox, 'udm' )
     date1 = self.findChild( QDateEdit, "deDate1" )
     date2 = self.findChild( QDateEdit, "deDate2" )
     self.data = {
         'path': path,
-        'planet': planet.isChecked(),
-        'rapideye': rapideye.isChecked(),
-        'landsat8': landsat8.isChecked(),
-        'sentinel2': sentinel2.isChecked(),       
+        'current_asset': getCurrentNameAsset(),
+        'udm': udm.isChecked(),
         'date1': date1.date(),
         'date2': date2.date()
     }
     self._saveDataSetting()
-    self.data[ 'isOk' ] = True
+    self.data['isOk'] = True
     self.accept()
 
   @pyqtSlot( bool )
