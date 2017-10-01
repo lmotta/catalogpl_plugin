@@ -731,6 +731,7 @@ class CatalogPL(QObject):
           
         if self.layerTree is None:
           return
+        self.layerTree.setCustomProperty ('showFeatureCount', True )
         
         msg = "Finished the search of images. Found %d images" % self.total_features_scenes
         typeMessage = QgsMessageBar.INFO
