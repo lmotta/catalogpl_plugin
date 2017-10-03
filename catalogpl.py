@@ -38,8 +38,6 @@ from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
 from legendlayer import ( LegendRaster, LegendTMS )
 
 from managerloginkey import ManagerLoginKey
-from curses.has_key import has_key
-from __builtin__ import True
 
 class MessageBarCancelProgressDownload(QObject):
 
@@ -140,25 +138,24 @@ class MessageBarCancel(QObject):
     self.kill()
     self.isCancel = True
 
-class WorkerSaveTMS(QObject):
+class WorkerCreateTMS_GDAL_WMS(QObject):
 
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
-  def __init__(self, legendTMS ):
-    super(WorkerSaveTMS, self).__init__()
-    self.legendTMS = legendTMS
+  def __init__(self, logMessage, legendTMS ):
+    super(WorkerCreateTMS_GDAL_WMS, self).__init__()
+    self.logMessage, self.legendTMS = logMessage, legendTMS
     self.isKilled = None # set in run
     self.path = self.ctTMS = self.iterFeat = None # setting
-    self.ltgRoot = self.ltgCatalog, self.msgDownload = None # setting
+    self.ltgRoot = self.ltgCatalog = None # setting
 
-  def setting(self, path, ctTMS, iterFeat, ltgRoot, ltgCatalog, msgDownload):
+  def setting(self, path, ctTMS, iterFeat, ltgRoot, ltgCatalog):
    self.path = path
    self.ctTMS = ctTMS
    self.iterFeat = iterFeat
    self.ltgRoot = ltgRoot
    self.ltgCatalog = ltgCatalog
-   self.msgDownload = msgDownload
 
   @pyqtSlot()
   def run(self):
@@ -178,8 +175,10 @@ class WorkerSaveTMS(QObject):
         return '<GDAL_WMS>\n'\
               '<!-- Planet Labs -->\n'\
               '<Service name="TMS">\n'\
-              '<ServerUrl>%s</ServerUrl>\n'\
+              '<ServerUrl>{server_url}</ServerUrl>\n'\
               '<Transparent>TRUE</Transparent>\n'\
+              '<SRS>EPSG:3857</SRS>\n'\
+              '<ImageFormat>image/png</ImageFormat>\n'\
               '</Service>\n'\
               '<DataWindow>\n'\
               '<UpperLeftX>-20037508.34</UpperLeftX>\n'\
@@ -191,69 +190,81 @@ class WorkerSaveTMS(QObject):
               '<TileCountY>1</TileCountY>\n'\
               '<YOrigin>top</YOrigin>\n'\
               '</DataWindow>\n'\
-              '%s'\
+              '{target_window}'\
               '<Projection>EPSG:3857</Projection>\n'\
               '<BlockSizeX>256</BlockSizeX>\n'\
               '<BlockSizeY>256</BlockSizeY>\n'\
               '<BandsCount>4</BandsCount>\n'\
               '<DataType>byte</DataType>\n'\
+              '<UserAgent>Mozilla/5.0</UserAgent>\n'\
               '<ZeroBlockHttpCodes>204,303,400,404,500,501</ZeroBlockHttpCodes>\n'\
               '<ZeroBlockOnServerException>true</ZeroBlockOnServerException>\n'\
               '<MaxConnections>5</MaxConnections>\n'\
-              '<UserPwd>%s</UserPwd>\n'\
+              '<UserPwd>{user_pwd}:</UserPwd>\n'\
               '<Cache>\n'\
-              '<Path>%s</Path>\n'\
+              '<Path>{cache_path}</Path>\n'\
               '</Cache>\n'\
-              '</GDAL_WMS>\n' % ( server_url, target_window, user_pwd, cache_path )
+              '</GDAL_WMS>\n'.format( server_url=server_url, target_window=target_window, user_pwd=user_pwd, cache_path=cache_path )
 
-      ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
-      if not ok:
-        return
       server_url = API_PlanetLabs.urlTMS.format( item_type=item_type, item_id=feat['id'] )
-      user_pwd = API_PlanetLabs.validKey
-      cache_path = "%s/cache_pl_%s.tms" % ( self.path, feat['id'] )
+      # Change for GDAL_WMS
+      for c in ['{z}', '{x}', '{y}']:
+        server_url = server_url.replace( c, "${0}".format( c ) )
+      cache_path = "%s/cache_pl_{0}_{1}.tms".format( self.path, feat['id'],  )
       target_window = contenTargetWindow()
       content_tms = contentTMS() 
       fileDownload.write( content_tms )
 
-    def addImage(image):
-      if not image in map( lambda item: item.layer().source(), self.ltgRoot.findLayers() ):
+    def addTMS():
+      if not image in sources_catalog_group:
         layer = QgsRasterLayer( image, os.path.split( image )[-1] )
+        layer.setCustomProperty( 'wkt_geom', wkt_geom )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer).setVisible( Qt.Unchecked )
         self.legendTMS.setLayer( layer )
 
+    mlr = QgsMapLayerRegistry.instance()
+    user_pwd = API_PlanetLabs.validKey
+    sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
+
     self.isKilled = False
-    numError = step = 0
+    step = totalError = 0
     for feat in self.iterFeat:
       step += 1
       self.stepProgress.emit( step )  
       if self.isKilled:
         self.iterFeat.close()
         break
-      image = os.path.join( self.path, u"%s_tms.xml" % feat['id'] )
+      item_id = feat['id']
+      ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
+      if not ok:
+        msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
+        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+        totalError += 1
+        continue
+      image = os.path.join( self.path, u"{0}_tms.xml".format( feat['id'] ) )
       if not QFile.exists( image ):
         fileDownload = QFile( image )
         fileDownload.open( QIODevice.WriteOnly )
         saveTMS( feat, fileDownload )
         fileDownload.close()
 
-      addImage( image )
+      wkt_geom = feat.geometry().exportToWkt()
+      addTMS()
 
-    self.msgDownload = self.msgDownload.replace( str( 'Download_total' ), str ( step  ) ) 
-    message  = { 'numError': numError, 'msgDownload': self.msgDownload }
+    message  = { 'totalError': totalError }
     self.finished.emit( message )
 
   def kill(self):
     self.isKilled = True
 
-class WorkerCreateTMS(QObject):
+class WorkerCreateTMS_ServerXYZ(QObject):
 
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
   def __init__(self, logMessage, legendTMS ):
-    super(WorkerCreateTMS, self).__init__()
+    super(WorkerCreateTMS_ServerXYZ, self).__init__()
     self.logMessage, self.legendTMS = logMessage, legendTMS
     self.isKilled = None # set in run
     self.iterFeat = self.ltgRoot = self.ltgCatalog = self.msgDownload = None # setting
@@ -328,7 +339,7 @@ class CatalogPL(QObject):
          'setting_images': self.settingImages,
          'calculate_status_assets': self.calculateAssetStatus,
          'activate_assets': self.activateAssets,
-         'create_tms': self.createTMS,
+         'create_tms': self.CreateTMS_GDAL_WMS,
          'download_images': self.downloadImages,
          'download_thumbnails': self.downloadThumbnails
       }
@@ -385,7 +396,7 @@ class CatalogPL(QObject):
   def _initThread(self):
     self.thread = QThread( self )
     self.thread.setObjectName( "QGIS_Plugin_Catalog_PlanetLabs" )
-    self.worker = WorkerCreateTMS( self.logMessage, self.legendTMS )
+    self.worker = WorkerCreateTMS_GDAL_WMS( self.logMessage, self.legendTMS )
     self.worker.moveToThread( self.thread )
     self.thread.started.connect( self.worker.run )
 
@@ -802,24 +813,16 @@ class CatalogPL(QObject):
       finished()
 
     def checkLayerLegend():
-
-      # self.layerTree is None by slot layerWillBeRemoved
-      if self.layerTree is None:   
-        return
-
-      self.layerTree.setVisible(Qt.Unchecked)
-      
       # self.searchSettings setting by __init__.setSearchSettings()
-      if not self.searchSettings['isOk']:
-        msg = "Please setting the Planet Labs Catalog layer"
-        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
-        self.legendCatalogLayer.enabledProcessing( False )
-        return
-      if not QDir( self.searchSettings[ 'path' ] ).exists() :
-        msg = "Register directory '%s' does not exist! Please setting the Planet Labs Catalog layer" % self.searchSettings['path']
-        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
-        self.legendCatalogLayer.enabledProcessing( False )
-        return
+      if self.searchSettings['isOk']:
+        return True
+      if not self.searchSettings['has_path']:
+        msg = "Please setting the directory for download in Planet Labs Catalog layer"
+      else:
+        msg = "The directory '{0}' not found, please setting directory in Planet Labs Catalog layer"
+        msg = msg.format( self.searchSettings['path'] )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 6 )
+      return False
 
     self.enableRun.emit( False )
 
@@ -827,11 +830,16 @@ class CatalogPL(QObject):
     if not self.layer is None:
       QgsMapLayerRegistry.instance().removeMapLayer( self.layer.id() )
     createLayer()
+    self.layerTree.setVisible(Qt.Unchecked)
+
+    if not checkLayerLegend():
+      self.legendCatalogLayer.setLayer( self.layer )
+      self.enableRun.emit( True )
+      return
 
     self.hasCriticalMessage = False
     populateLayer() # addFeatures().commitFeatures() -> QEventLoop()
     self.legendCatalogLayer.setLayer( self.layer )
-    checkLayerLegend()
     self.enableRun.emit( True )
 
   def getTotalAssets(self):
@@ -898,7 +906,7 @@ class CatalogPL(QObject):
       self.legendCatalogLayer.enabledProcessing()
 
   @pyqtSlot()
-  def createTMS(self):
+  def createTMS_ServerXYZ(self):
     @pyqtSlot( dict )
     def finished( message ):
       self.thread.quit()
@@ -906,7 +914,7 @@ class CatalogPL(QObject):
       self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog(ltgRoot)
+    self._setGroupCatalog( ltgRoot )
 
     r = self._startProcess( self.worker.kill )
     if not r['isOk']:
@@ -1041,45 +1049,27 @@ class CatalogPL(QObject):
     self._endProcessing( "Activate assets", dataLocal['totalError'] ) 
 
   @pyqtSlot()
-  def downloadTMS(self):
+  def CreateTMS_GDAL_WMS(self):
     @pyqtSlot( dict )
     def finished( message ):
-      numError =  message[ 'numError' ]
-      msgDownload =  message[ 'msgDownload' ]
-      
       self.thread.quit()
       self.worker.finished.disconnect( finished )
-      self.enableRun.emit( True )
-  
-      if not self.mbcancel.isCancel and self.worker.isKilled:
-        self.msgBar.popWidget()
-        msg = "Canceled by user"
-        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
-        return
-      
-      if numError > 0:
-        msg = "Error request: %s (Code = %d)" % ( response[ 'message' ], response[ 'errorCode' ] )
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
-
-      self.legendCatalogLayer.enabledProcessing()
-      self._endProcessing( numError, msgDownload )
+      self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog(ltgRoot)
+    self._setGroupCatalog( ltgRoot )
 
-    ( path, total, msgDownload, iterFeat ) = self._getFeatureIteratorTotal( "TMS" )
-    if total == 0:
-      msg = "Not images for download."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 )
+    r = self._startProcess( self.worker.kill )
+    if not r['isOk']:
       return
+    iterFeat = r['iterFeat']
 
+    path = self.searchSettings['path']
     cr3857 = QgsCoordinateReferenceSystem( 3857, QgsCoordinateReferenceSystem.EpsgCrsId )
     ctTMS = QgsCoordinateTransform( self.layer.crs(), cr3857 )
-    self.mbcancel = MessageBarCancelProgressDownload( self.msgBar, "%s..." % msgDownload, total, self.worker.kill )
-    msgDownload = msgDownload.replace( str( total ), 'Download_total' )
-    
+
     self.worker.finished.connect( finished )
-    self.worker.setting( path, ctTMS, iterFeat, ltgRoot, self.ltgCatalog, msgDownload )
+    self.worker.setting( path, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER

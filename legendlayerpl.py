@@ -193,10 +193,10 @@ class DialogImageSettingPL(QDialog):
       if QDir( path ).exists():
         data = { 'isOk': True, 'path': path }
       else:
-        data = { 'isOk': False, 'path': path }
+        data = { 'isOk': False, 'has_path': True, 'path': path }
         s.remove( values['path'] )
     else:
-      data = { 'isOk': False, 'path': "Empty" }
+      data = { 'isOk': False, 'has_path': False }
 
     return data
 
@@ -383,7 +383,7 @@ class LegendCatalogLayer():
           item['action'] = QAction(None)
           item['action'].setSeparator(True)
         else:
-          item['action'] = QAction( item['menu'], None )
+          item['action'] = QAction( item['menu'], self.legendInterface )
           item['action'].triggered.connect( item['slot'] )
           if item['id'] in idsTotal:
             lblAction = "{0}({1})".format( item['menu'], prefixs['total'] )

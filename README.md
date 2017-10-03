@@ -21,6 +21,9 @@ Tested with QGIS 2.18.13
 Luiz Motta
 
 ## Changelog
+- 2017-10-02
+Change TMS by Server tiler XYZ to GDAL_WMS
+Fixed when the first use of plugin(not set the directory), not show the setting
 - 2017-10-01
 Changed checkbox to radiobutton for images, only one type of image for searching.
 - 2017-09-30
