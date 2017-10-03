@@ -9,12 +9,14 @@ about=This plugin lets you get images from the Planet Labs API(Version 1), by pe
   add TMS images.
   See presentation: * It will be made as soon
   Tested with QGIS 2.18.13
-version=1.3
+version=1.4
 qgisMinimumVersion=2.18
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
-changelog=1.3
+changelog=1.4
+  Fix cache_path when save TMS
+  1.3
   Change TMS of Tile Server XYZ to GDAL_WMS
   1.2
   Fixed when the first use of plugin(not set the directory), not show the setting

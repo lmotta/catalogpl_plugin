@@ -21,6 +21,8 @@ Tested with QGIS 2.18.13
 Luiz Motta
 
 ## Changelog
+- 2017-10-03
+Fix cache_path when save TMS
 - 2017-10-02
 Change TMS by Server tiler XYZ to GDAL_WMS
 Fixed when the first use of plugin(not set the directory), not show the setting
