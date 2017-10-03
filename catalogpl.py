@@ -210,7 +210,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
       # Change for GDAL_WMS
       for c in ['{z}', '{x}', '{y}']:
         server_url = server_url.replace( c, "${0}".format( c ) )
-      cache_path = "%s/cache_pl_{0}_{1}.tms".format( self.path, feat['id'],  )
+      cache_path = "{0}/cache_pl_{1}.tms".format( self.path, feat['id'] )
       target_window = contenTargetWindow()
       content_tms = contentTMS() 
       fileDownload.write( content_tms )
