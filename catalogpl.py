@@ -260,6 +260,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
   def kill(self):
     self.isKilled = True
 
+# Check change in WorkerCreateTMS_GDAL_WMS(path,...)
 class WorkerCreateTMS_ServerXYZ(QObject):
 
   finished = pyqtSignal( dict )
@@ -932,6 +933,10 @@ class CatalogPL(QObject):
       return
     iterFeat = r['iterFeat']
 
+    path_tms = os.path.join( self.searchSettings['path'], 'tms')
+    if not os.path.exists( path_tms ):
+      os.makedirs( path_tms )
+
     self.worker.finished.connect( finished )
     self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog )
     self.worker.stepProgress.connect( self.mbcancel.step )
@@ -1076,12 +1081,14 @@ class CatalogPL(QObject):
       return
     iterFeat = r['iterFeat']
 
-    path = self.searchSettings['path']
+    path_tms = os.path.join( self.searchSettings['path'], 'tms')
+    if not os.path.exists( path_tms ):
+      os.makedirs( path_tms )
     cr3857 = QgsCoordinateReferenceSystem( 3857, QgsCoordinateReferenceSystem.EpsgCrsId )
     ctTMS = QgsCoordinateTransform( self.layer.crs(), cr3857 )
 
     self.worker.finished.connect( finished )
-    self.worker.setting( path, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
+    self.worker.setting( path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
@@ -1118,7 +1125,9 @@ class CatalogPL(QObject):
     totalError = step = 0
     self.pixmap = None # Populate(self.apiPL.getThumbnail) and catch(setFinished)
     id_thumbnail = self.layer.fieldNameIndex('thumbnail')
-    path_thumbnail = self.searchSettings['path']
+    path_thumbnail = os.path.join( self.searchSettings['path'], 'thumbnail')
+    if not os.path.exists( path_thumbnail ):
+      os.makedirs( path_thumbnail )
     isEditable = self.layer.isEditable()
     if not isEditable:
       self.layer.startEditing()
@@ -1190,8 +1199,8 @@ class CatalogPL(QObject):
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer)
         self.legendRasterGeom.setLayer( layer )
-  
-      arg = ( self.searchSettings['path'], u"{0}_{1}.tif".format( feat['id'], suffix ) )
+      
+      arg = ( path_img, u"{0}_{1}.tif".format( feat['id'], suffix ) )
       file_image = os.path.join( *arg )
       self.mbcancel.step( dataLocal['step'], file_image )
       if self.mbcancel.isCancel or self.layerTree is None :
@@ -1222,6 +1231,11 @@ class CatalogPL(QObject):
       return
     iterFeat = r['iterFeat']
 
+
+    path_img = os.path.join( self.searchSettings['path'], 'tif')    
+    if not os.path.exists( path_img ):
+      os.makedirs( path_img )
+
     dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
     self.totalReady = None
     loop = QEventLoop()
@@ -1232,14 +1246,15 @@ class CatalogPL(QObject):
       wkt_geom = feat.geometry().exportToWkt()
       acquired = feat['acquired']
       asset = 'analytic'
-      arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
       if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
+        arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
         arg = [ asset ] + arg_base + [ True ] 
         if not createImage( *arg ):
           break # Cancel by user
       if self.searchSettings['udm']:
         asset = 'udm'
         if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
+          arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
           arg = [ asset] + arg_base
           if not createImage( *arg ):
             break # Cancel by user
