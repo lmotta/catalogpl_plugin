@@ -100,7 +100,7 @@ class LegendRaster(object):
 class LegendTMSXml(LegendRaster):
 
   def __init__(self, labelMenu):
-     super(LegendTMS, self).__init__( labelMenu )
+     super(LegendRasterGeom, self).__init__( labelMenu )
 
   def _getFile(self, layer):
     doc = QDomDocument()
@@ -154,10 +154,10 @@ class LegendTMSXml(LegendRaster):
     rect =  QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
     return ctCanvas.transform( rect )
 
-class LegendTMS(LegendRaster):
+class LegendRasterGeom(LegendRaster):
 
   def __init__(self, labelMenu):
-     super(LegendTMS, self).__init__( labelMenu )
+     super(LegendRasterGeom, self).__init__( labelMenu )
 
   def _getExtent(self, canvas, layer):
     crsCanvas = canvas.mapSettings().destinationCrs()

@@ -35,7 +35,7 @@ from qgis.gui  import ( QgsMessageBar, QgsRubberBand )
 
 from apiqtpl import API_PlanetLabs
 from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
-from legendlayer import ( LegendRaster, LegendTMS )
+from legendlayer import ( LegendRasterGeom )
 
 from managerloginkey import ManagerLoginKey
 
@@ -143,9 +143,9 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
-  def __init__(self, logMessage, legendTMS ):
+  def __init__(self, logMessage, legendRasterGeom ):
     super(WorkerCreateTMS_GDAL_WMS, self).__init__()
-    self.logMessage, self.legendTMS = logMessage, legendTMS
+    self.logMessage, self.legendRasterGeom = logMessage, legendRasterGeom
     self.isKilled = None # set in run
     self.path = self.ctTMS = self.iterFeat = None # setting
     self.ltgRoot = self.ltgCatalog = None # setting
@@ -219,9 +219,10 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
       if not image in sources_catalog_group:
         layer = QgsRasterLayer( image, os.path.split( image )[-1] )
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
+        layer.setCustomProperty( 'date', acquired )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer).setVisible( Qt.Unchecked )
-        self.legendTMS.setLayer( layer )
+        self.legendRasterGeom.setLayer( layer )
 
     mlr = QgsMapLayerRegistry.instance()
     user_pwd = API_PlanetLabs.validKey
@@ -250,6 +251,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
         fileDownload.close()
 
       wkt_geom = feat.geometry().exportToWkt()
+      acquired = feat['acquired']
       addTMS()
 
     message  = { 'totalError': totalError }
@@ -263,9 +265,9 @@ class WorkerCreateTMS_ServerXYZ(QObject):
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
-  def __init__(self, logMessage, legendTMS ):
+  def __init__(self, logMessage, legendRasterGeom ):
     super(WorkerCreateTMS_ServerXYZ, self).__init__()
-    self.logMessage, self.legendTMS = logMessage, legendTMS
+    self.logMessage, self.legendRasterGeom = logMessage, legendRasterGeom
     self.isKilled = None # set in run
     self.iterFeat = self.ltgRoot = self.ltgCatalog = self.msgDownload = None # setting
 
@@ -288,7 +290,7 @@ class WorkerCreateTMS_ServerXYZ(QObject):
         lyr.setCustomProperty( 'wkt_geom', wkt_geom )
         mlr.addMapLayer( lyr, addToLegend=False )
         self.ltgCatalog.addLayer( lyr ).setVisible( Qt.Unchecked )
-        self.legendTMS.setLayer( lyr )
+        self.legendRasterGeom.setLayer( lyr )
 
     mlr = QgsMapLayerRegistry.instance()
     user_pwd = API_PlanetLabs.validKey
@@ -366,8 +368,7 @@ class CatalogPL(QObject):
 
     self.apiPL = API_PlanetLabs()
     self.mngLogin = ManagerLoginKey('catalogpl_plugin')
-    self.legendRaster = LegendRaster( CatalogPL.pluginName )
-    self.legendTMS = LegendTMS( CatalogPL.pluginName )
+    self.legendRasterGeom = LegendRasterGeom( CatalogPL.pluginName )
     self.thread = self.worker = None # initThread
     self.mbcancel = None # Need for worker it is be class attribute
     self.isHostLive = False
@@ -390,13 +391,12 @@ class CatalogPL(QObject):
   def __del__(self):
     self._connect( False )
     self._finishThread()
-    del self.legendRaster
-    del self.legendTMS
+    del self.legendRasterGeom
 
   def _initThread(self):
     self.thread = QThread( self )
     self.thread.setObjectName( "QGIS_Plugin_Catalog_PlanetLabs" )
-    self.worker = WorkerCreateTMS_GDAL_WMS( self.logMessage, self.legendTMS )
+    self.worker = WorkerCreateTMS_GDAL_WMS( self.logMessage, self.legendRasterGeom )
     self.worker.moveToThread( self.thread )
     self.thread.started.connect( self.worker.run )
 
@@ -1146,7 +1146,7 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def downloadImages(self):
-    def createImage(suffix, location, dataLocal, add_image=False):
+    def createImage(suffix, location, dataLocal, wkt_geom, acquired, add_image=False):
       def setFinished( response ):
         self.imageDownload.flush()
         self.imageDownload.close()
@@ -1173,9 +1173,11 @@ class CatalogPL(QObject):
 
       def addImage():
         layer = QgsRasterLayer( file_image, os.path.split( file_image )[-1] )
+        layer.setCustomProperty( 'wkt_geom', wkt_geom )
+        layer.setCustomProperty( 'date', acquired )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer)
-        self.legendRaster.setLayer( layer )
+        self.legendRasterGeom.setLayer( layer )
   
       arg = ( self.searchSettings['path'], u"{0}_{1}.tif".format( feat['id'], suffix ) )
       file_image = os.path.join( *arg )
@@ -1215,14 +1217,19 @@ class CatalogPL(QObject):
       dataLocal['step'] += 1
       meta_json = json.loads( feat['meta_json'] )
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
+      wkt_geom = feat.geometry().exportToWkt()
+      acquired = feat['acquired']
       asset = 'analytic'
+      arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
       if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-        if not createImage( asset, valuesAssets[ asset ]['location'], dataLocal, True ):
+        arg = [ asset ] + arg_base + [ True ] 
+        if not createImage( *arg ):
           break # Cancel by user
       if self.searchSettings['udm']:
         asset = 'udm'
         if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-          if not createImage( asset, valuesAssets[ asset ]['location'], dataLocal ):
+          arg = [ asset] + arg_base
+          if not createImage( *arg ):
             break # Cancel by user
 
     self._endProcessing( "Download Images", dataLocal['totalError'] ) 
