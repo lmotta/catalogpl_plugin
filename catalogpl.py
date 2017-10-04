@@ -512,6 +512,17 @@ class CatalogPL(QObject):
       return { 'isOk': True, 'message': msg }
     return { 'isOk': False }
 
+  def _sortGroupCatalog(self, reverse=True):
+    ltls = self.ltgCatalog.findLayers()
+    if len( ltls ) == 0:
+      return
+    layers = [ ltl.layer() for ltl in ltls ] 
+    layers.sort( key=lambda l: l.customProperty('date', None), reverse=reverse )
+    totalLayers = len( layers )
+    for idx, lyr in enumerate( layers ):
+      self.ltgCatalog.insertLayer( idx, lyr).setVisible( Qt.Unchecked )
+    self.ltgCatalog.removeChildren( totalLayers, totalLayers )
+
   def hostLive(self):
     def setFinished(response):
       self.isOkPL = response[ 'isHostLive' ]
@@ -1054,6 +1065,7 @@ class CatalogPL(QObject):
     def finished( message ):
       self.thread.quit()
       self.worker.finished.disconnect( finished )
+      self._sortGroupCatalog()
       self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
@@ -1232,6 +1244,7 @@ class CatalogPL(QObject):
           if not createImage( *arg ):
             break # Cancel by user
 
+    self._sortGroupCatalog()
     self._endProcessing( "Download Images", dataLocal['totalError'] ) 
 
   @staticmethod
