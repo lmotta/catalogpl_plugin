@@ -16,7 +16,7 @@ author=Luiz Motta
 email=motta.luiz@gmail.com
 changelog=1.5
   Reverse images order in group catalog, add directories,
-  tms, tif, thumb, inside download directory 
+  tms, tif, thumbnail, inside download directory 
   1.4
   Fix cache_path when save TMS
   1.3

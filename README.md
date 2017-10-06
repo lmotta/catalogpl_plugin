@@ -23,7 +23,7 @@ Luiz Motta
 ## Changelog
 - 2017-10-04
 Reverse images order in group catalog, add directories,
-tms, tif, thumb, inside download directory 
+tms, tif, thumbnail, inside download directory 
 - 2017-10-03
 Fix cache_path when save TMS
 - 2017-10-02
