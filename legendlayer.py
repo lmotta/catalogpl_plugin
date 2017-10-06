@@ -31,18 +31,18 @@ from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
 class PolygonEffectsCanvas():
   def __init__(self):
     self.canvas = qgis.utils.iface.mapCanvas()
-    self.ctCanvas = None #  setCRS if need
+    self.crs = None #  setCRS if need
     self.color = QColor(255,0,0)
 
   def setCRS(self, crs):
-    crsCanvas = self.canvas.mapSettings().destinationCrs()
-    if not crs == crsCanvas:
-      self.ctCanvas = QgsCoordinateTransform( crs, crsCanvas )
+    self.crs = crs
 
   def zoom(self, extent):
     extentTransform = extent 
-    if not self.ctCanvas is None:
-      extentTransform = self.ctCanvas.transform( extent )
+    crsCanvas = self.canvas.mapSettings().destinationCrs()
+    if not self.crs == crsCanvas:
+      ct = QgsCoordinateTransform( self.crs, crsCanvas )
+      extentTransform = ct.transform( extent )
     self.canvas.setExtent( extentTransform )
     self.canvas.zoomByFactor(1.05)
     self.canvas.refresh()
@@ -53,9 +53,10 @@ class PolygonEffectsCanvas():
       self.canvas.scene().removeItem( rb )
 
     geomTransform = geom
-    if not self.ctCanvas is None:
-      geomTransform = QgsGeometry( geom )
-      geomTransform.transform( self.ctCanvas )
+    crsCanvas = self.canvas.mapSettings().destinationCrs()
+    if not self.crs == crsCanvas:
+      ct = QgsCoordinateTransform( self.crs, crsCanvas )
+      geomTransform.transform( ct )
 
     rb = QgsRubberBand( self.canvas, QGis.Polygon)
     rb.setBorderColor( self.color )
@@ -88,7 +89,6 @@ class LegendRaster(object):
     self.legendInterface = qgis.utils.iface.legendInterface()
     initLegendLayer() # Set self.legendLayer 
     self.polygonEC = PolygonEffectsCanvas()
-    self.layer = None # setLayer
 
   def __del__(self):
     for item in self.legendLayer:
@@ -97,26 +97,27 @@ class LegendRaster(object):
   def setLayer(self, layer):
     for item in self.legendLayer:
       self.legendInterface.addLegendLayerActionForLayer( item['action'],  layer )
-    self.layer = layer
-    self.polygonEC.setCRS( layer.crs() )
 
   @pyqtSlot()
   def zoom(self):
-    extent = self.layer.extent()
+    layer = self.legendInterface.currentLayer()
+    extent = layer.extent()
+    self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.zoom( extent )
     geom = QgsGeometry.fromRect( extent )
     self.polygonEC.highlight( geom )
 
   @pyqtSlot()
   def highlight(self):
-    geom = QgsGeometry.fromRect( self.layer.extent() )
+    layer = self.legendInterface.currentLayer()
+    geom = QgsGeometry.fromRect( layer.extent() )
     self.polygonEC.highlight( geom )
 
 class LegendTMSXml(LegendRaster):
   def __init__(self, labelMenu):
      super(LegendRasterGeom, self).__init__( labelMenu )
 
-  def _getExtent(self):
+  def _getExtent(self, layer):
     def getTargetWindow():
       nodes = doc.elementsByTagName('TargetWindow')
       node = nodes.item( 0 )
@@ -130,7 +131,7 @@ class LegendTMSXml(LegendRaster):
       return targetWindow
 
     doc = QDomDocument()
-    file = QFile( self.layer.source() )
+    file = QFile( layer.source() )
     doc.setContent( file )
     file.close()
 
@@ -139,32 +140,40 @@ class LegendTMSXml(LegendRaster):
 
   @pyqtSlot()
   def zoom(self):
-    extent = self._getExtent()
+    layer = self.legendInterface.currentLayer()
+    extent = self._getExtent( layer )
+    self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.zoom( extent )
     geom = QgsGeometry.fromRect( extent )
     self.polygonEC.highlight( geom )
 
   @pyqtSlot()
   def highlight(self):
-    extent = self.self._getExtent()
+    layer = self.legendInterface.currentLayer()
+    extent = self.self._getExtent( layer )
     geom = QgsGeometry.fromRect( extent )
+    self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.highlight( geom )
 
 class LegendRasterGeom(LegendRaster):
   def __init__(self, labelMenu):
      super(LegendRasterGeom, self).__init__( labelMenu )
 
-  def _getGeometry(self):
-    wkt_geom = self.layer.customProperty('wkt_geom')
+  def _getGeometry(self, layer):
+    wkt_geom = layer.customProperty('wkt_geom')
     return QgsGeometry.fromWkt( wkt_geom )
 
   @pyqtSlot()
   def zoom(self):
-    geom = self._getGeometry()
+    layer = self.legendInterface.currentLayer()
+    geom = self._getGeometry( layer )
+    self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.zoom( geom.boundingBox() )
     self.polygonEC.highlight( geom )
 
   @pyqtSlot()
   def highlight(self):
-    geom = self._getGeometry()
+    layer = self.legendInterface.currentLayer()
+    geom = self._getGeometry( layer )
+    self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.highlight( geom )
