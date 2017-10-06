@@ -21,6 +21,9 @@ Tested with QGIS 2.18.13
 Luiz Motta
 
 ## Changelog
+- 2017-10-06
+Add groups of images with same date,
+add menu Open Form in images and clear cache of TMS.
 - 2017-10-04
 Reverse images order in group catalog, add directories,
 tms, tif, thumbnail, inside download directory 

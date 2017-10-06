@@ -9,12 +9,14 @@ about=This plugin lets you get images from the Planet Labs API(Version 1), by pe
   add TMS images.
   See presentation: * It will be made as soon
   Tested with QGIS 2.18.13
-version=1.5
+version=1.6
 qgisMinimumVersion=2.18
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
-changelog=1.5
+changelog=1.6
+  Add groups of images with same date, add menu Open Form in images and clear cache of TMS.
+  1.5
   Reverse images order in group catalog, add directories,
   tms, tif, thumbnail, inside download directory 
   1.4
