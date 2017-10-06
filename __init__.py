@@ -43,7 +43,7 @@ class CatalogPLPlugin:
     self.name = u"&Catalog Planet Labs"
     self.msgBar = iface.messageBar()
     self.action = None
-    self.ctl = CatalogPL( self.iface, CatalogPLPlugin.icon )
+    self.ctl = CatalogPL( CatalogPLPlugin.icon )
 
     CatalogPL.copyExpression()
     

@@ -24,12 +24,46 @@ from PyQt4.QtGui  import ( QAction, QColor )
 from PyQt4.QtXml import QDomDocument
 
 import qgis
-from qgis.gui import ( QgsRubberBand ) 
+from qgis.gui import ( QgsRubberBand, QgsHighlight ) 
 from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
                         QgsCoordinateTransform, QgsCoordinateReferenceSystem )
 
-class LegendRaster(object):
+class PolygonEffectsCanvas():
+  def __init__(self):
+    self.canvas = qgis.utils.iface.mapCanvas()
+    self.ctCanvas = None #  setCRS if need
+    self.color = QColor(255,0,0)
 
+  def setCRS(self, crs):
+    crsCanvas = self.canvas.mapSettings().destinationCrs()
+    if not crs == crsCanvas:
+      self.ctCanvas = QgsCoordinateTransform( crs, crsCanvas )
+
+  def zoom(self, extent):
+    extentTransform = extent 
+    if not self.ctCanvas is None:
+      extentTransform = self.ctCanvas.transform( extent )
+    self.canvas.setExtent( extentTransform )
+    self.canvas.zoomByFactor(1.05)
+    self.canvas.refresh()
+    
+  def highlight(self, geom, seconds=2):
+    def removeRB():
+      rb.reset( True )
+      self.canvas.scene().removeItem( rb )
+
+    geomTransform = geom
+    if not self.ctCanvas is None:
+      geomTransform = QgsGeometry( geom )
+      geomTransform.transform( self.ctCanvas )
+
+    rb = QgsRubberBand( self.canvas, QGis.Polygon)
+    rb.setBorderColor( self.color )
+    rb.setWidth(2)
+    rb.setToGeometry( geomTransform, None )
+    QTimer.singleShot( seconds*1000, removeRB )
+
+class LegendRaster(object):
   def __init__(self, labelMenu):
     def initLegendLayer():
       self.legendLayer = [
@@ -52,8 +86,9 @@ class LegendRaster(object):
         self.legendInterface.addLegendLayerAction( item['action'], labelMenu, item['id'], QgsMapLayer.RasterLayer, False )
 
     self.legendInterface = qgis.utils.iface.legendInterface()
-    self.legendLayer = None
-    initLegendLayer()
+    initLegendLayer() # Set self.legendLayer 
+    self.polygonEC = PolygonEffectsCanvas()
+    self.layer = None # setLayer
 
   def __del__(self):
     for item in self.legendLayer:
@@ -62,77 +97,28 @@ class LegendRaster(object):
   def setLayer(self, layer):
     for item in self.legendLayer:
       self.legendInterface.addLegendLayerActionForLayer( item['action'],  layer )
-
-  def _getExtent(self, canvas, layer):
-    crsCanvas = canvas.mapSettings().destinationCrs()
-    crsLayer = layer.crs()
-    ctCanvas = QgsCoordinateTransform( crsLayer, crsCanvas )
-    return ctCanvas.transform( layer.extent() )
-
-  def _highlight(self, canvas, extent ):
-    def removeRB():
-      rb.reset( True )
-      canvas.scene().removeItem( rb )
-    
-    rb = QgsRubberBand( canvas, QGis.Polygon)
-    rb.setBorderColor( QColor( 255,  0, 0 ) )
-    rb.setWidth( 2 )
-    rb.setToGeometry( QgsGeometry.fromRect( extent ), None )
-    QTimer.singleShot( 2000, removeRB )
-
-  @pyqtSlot()
-  def highlight(self):
-    canvas = qgis.utils.iface.mapCanvas()
-    layer = self.legendInterface.currentLayer()
-    extent = self._getExtent( canvas, layer )
-    self._highlight( canvas, extent )
+    self.layer = layer
+    self.polygonEC.setCRS( layer.crs() )
 
   @pyqtSlot()
   def zoom(self):
-    canvas = qgis.utils.iface.mapCanvas()
-    layer = self.legendInterface.currentLayer()
-    extent = self._getExtent( canvas, layer )
-    canvas.setExtent( extent )
-    canvas.zoomByFactor( 1.05 )
-    canvas.refresh()
-    self._highlight( canvas, extent )
+    extent = self.layer.extent()
+    self.polygonEC.zoom( extent )
+    geom = QgsGeometry.fromRect( extent )
+    self.polygonEC.highlight( geom )
+
+  @pyqtSlot()
+  def highlight(self):
+    geom = QgsGeometry.fromRect( self.layer.extent() )
+    self.polygonEC.highlight( geom )
 
 class LegendTMSXml(LegendRaster):
-
   def __init__(self, labelMenu):
      super(LegendRasterGeom, self).__init__( labelMenu )
 
-  def _getFile(self, layer):
-    doc = QDomDocument()
-    file = QFile( layer.source() )
-    return None if not file.open( QIODevice.ReadOnly ) else file
-
-  def hasTargetWindows(self, layer ):
-    file = self._getFile( layer )
-    if file is None:
-     return False
-
-    doc = QDomDocument()
-    doc.setContent( file )
-    file.close()
-
-    nodes = doc.elementsByTagName( 'TargetWindow' )
-    return True if nodes.count() > 0 else False
-
-  def _getExtent(self, canvas, layer):
-    def getTargetWindows():
-      file = self._getFile( layer )
-      if file is None:
-        return None
-
-      doc = QDomDocument()
-      doc.setContent( file )
-      file.close()
-
-      nodes = doc.elementsByTagName( 'TargetWindow' )
-      if nodes.count == 0:
-        return None
-
+  def _getExtent(self):
+    def getTargetWindow():
+      nodes = doc.elementsByTagName('TargetWindow')
       node = nodes.item( 0 )
       targetWindow = { 'ulX': None, 'ulY': None, 'lrX': None, 'lrY': None }
       labels = { 'UpperLeftX': 'ulX', 'UpperLeftY': 'ulY', 'LowerRightX': 'lrX', 'LowerRightY': 'lrY' }
@@ -141,50 +127,44 @@ class LegendTMSXml(LegendRaster):
         if len( text ) == 0:
           continue
         targetWindow[ value ] = float( text )
-
-      if None in targetWindow.values():
-        return None
-
       return targetWindow
 
-    crsCanvas = canvas.mapSettings().destinationCrs()
-    crsLayer = layer.crs()
-    ctCanvas = QgsCoordinateTransform( crsLayer, crsCanvas )
-    tw = getTargetWindows()
-    rect =  QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
-    return ctCanvas.transform( rect )
+    doc = QDomDocument()
+    file = QFile( self.layer.source() )
+    doc.setContent( file )
+    file.close()
 
-class LegendRasterGeom(LegendRaster):
-
-  def __init__(self, labelMenu):
-     super(LegendRasterGeom, self).__init__( labelMenu )
-
-  def _getExtent(self, canvas, layer):
-    crsCanvas = canvas.mapSettings().destinationCrs()
-    crsWkt = QgsCoordinateReferenceSystem(4326, QgsCoordinateReferenceSystem.EpsgCrsId )
-    ctCanvas = QgsCoordinateTransform( crsWkt, crsCanvas )
-    wkt_geom = layer.customProperty( 'wkt_geom' )
-    geom = QgsGeometry.fromWkt( wkt_geom )
-    geom.transform( ctCanvas )
-    return  geom
-
-  def _highlight(self, canvas, geom ):
-    def removeRB():
-      rb.reset( True )
-      canvas.scene().removeItem( rb )
-    
-    rb = QgsRubberBand( canvas, QGis.Polygon)
-    rb.setBorderColor( QColor( 255,  0, 0 ) )
-    rb.setWidth( 2 )
-    rb.setToGeometry( geom, None )
-    QTimer.singleShot( 2000, removeRB )
+    tw = getTargetWindow()
+    return QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
 
   @pyqtSlot()
   def zoom(self):
-    canvas = qgis.utils.iface.mapCanvas()
-    layer = self.legendInterface.currentLayer()
-    geom = self._getExtent( canvas, layer )
-    canvas.setExtent( geom.boundingBox () )
-    canvas.zoomByFactor( 1.05 )
-    canvas.refresh()
-    self._highlight( canvas, geom )
+    extent = self._getExtent()
+    self.polygonEC.zoom( extent )
+    geom = QgsGeometry.fromRect( extent )
+    self.polygonEC.highlight( geom )
+
+  @pyqtSlot()
+  def highlight(self):
+    extent = self.self._getExtent()
+    geom = QgsGeometry.fromRect( extent )
+    self.polygonEC.highlight( geom )
+
+class LegendRasterGeom(LegendRaster):
+  def __init__(self, labelMenu):
+     super(LegendRasterGeom, self).__init__( labelMenu )
+
+  def _getGeometry(self):
+    wkt_geom = self.layer.customProperty('wkt_geom')
+    return QgsGeometry.fromWkt( wkt_geom )
+
+  @pyqtSlot()
+  def zoom(self):
+    geom = self._getGeometry()
+    self.polygonEC.zoom( geom.boundingBox() )
+    self.polygonEC.highlight( geom )
+
+  @pyqtSlot()
+  def highlight(self):
+    geom = self._getGeometry()
+    self.polygonEC.highlight( geom )

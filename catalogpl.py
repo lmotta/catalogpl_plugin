@@ -217,6 +217,10 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
 
     def addTMS():
       if not image in sources_catalog_group:
+        geomTransf = QgsGeometry(feat.geometry() )
+        geomTransf.transform( self.ctTMS )
+        wkt_geom = geomTransf.exportToWkt()
+        acquired = feat['acquired']
         layer = QgsRasterLayer( image, os.path.split( image )[-1] )
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
         layer.setCustomProperty( 'date', acquired )
@@ -250,8 +254,6 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
         saveTMS( feat, fileDownload )
         fileDownload.close()
 
-      wkt_geom = feat.geometry().exportToWkt()
-      acquired = feat['acquired']
       addTMS()
 
     message  = { 'totalError': totalError }
@@ -261,6 +263,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
     self.isKilled = True
 
 # Check change in WorkerCreateTMS_GDAL_WMS(path,...)
+# Not Runnig!
 class WorkerCreateTMS_ServerXYZ(QObject):
 
   finished = pyqtSignal( dict )
@@ -333,7 +336,7 @@ class CatalogPL(QObject):
 
   enableRun = pyqtSignal( bool )
   
-  def __init__(self, iface, icon):
+  def __init__(self, icon):
     def setLegendCatalogLayer():
       # keys = LegendCatalogLayer.legendMenuIDs 
       slots = { 
@@ -361,11 +364,11 @@ class CatalogPL(QObject):
       self.searchSettings['date2'] = date2
 
     super(CatalogPL, self).__init__()
-    self.canvas = iface.mapCanvas()
-    self.msgBar = iface.messageBar()
+    self.canvas = qgis.utils.iface.mapCanvas()
+    self.msgBar = qgis.utils.iface.messageBar()
     self.logMessage = QgsMessageLog.instance().logMessage
     self.icon = icon
-    self.mainWindow = iface.mainWindow()
+    self.mainWindow = qgis.utils.iface.mainWindow()
 
     self.apiPL = API_PlanetLabs()
     self.mngLogin = ManagerLoginKey('catalogpl_plugin')
@@ -1090,8 +1093,8 @@ class CatalogPL(QObject):
     self.worker.finished.connect( finished )
     self.worker.setting( path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
     self.worker.stepProgress.connect( self.mbcancel.step )
-    self.thread.start() # Start Worker
-    #self.worker.run() #DEBUGER
+    #self.thread.start() # Start Worker
+    self.worker.run() #DEBUGER
 
   @pyqtSlot()
   def downloadThumbnails(self):
@@ -1167,7 +1170,7 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def downloadImages(self):
-    def createImage(suffix, location, dataLocal, wkt_geom, acquired, add_image=False):
+    def createImage(suffix, location, geom, v_crs, acquired, dataLocal, add_image=False):
       def setFinished( response ):
         self.imageDownload.flush()
         self.imageDownload.close()
@@ -1194,6 +1197,10 @@ class CatalogPL(QObject):
 
       def addImage():
         layer = QgsRasterLayer( file_image, os.path.split( file_image )[-1] )
+        geomTransf = QgsGeometry( geom )
+        ct = QgsCoordinateTransform( v_crs, layer.crs() )
+        geomTransf.transform( ct )
+        wkt_geom = geomTransf.exportToWkt()
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
         layer.setCustomProperty( 'date', acquired )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
@@ -1231,11 +1238,11 @@ class CatalogPL(QObject):
       return
     iterFeat = r['iterFeat']
 
-
     path_img = os.path.join( self.searchSettings['path'], 'tif')    
     if not os.path.exists( path_img ):
       os.makedirs( path_img )
-
+      
+    crsLayer = self.layer.crs()
     dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
     self.totalReady = None
     loop = QEventLoop()
@@ -1243,18 +1250,17 @@ class CatalogPL(QObject):
       dataLocal['step'] += 1
       meta_json = json.loads( feat['meta_json'] )
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
-      wkt_geom = feat.geometry().exportToWkt()
-      acquired = feat['acquired']
+      arg_core = [ feat.geometry(), crsLayer, feat['acquired'], dataLocal ]
       asset = 'analytic'
       if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-        arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
+        arg_base = [ valuesAssets[ asset ]['location'] ] + arg_core
         arg = [ asset ] + arg_base + [ True ] 
         if not createImage( *arg ):
           break # Cancel by user
       if self.searchSettings['udm']:
         asset = 'udm'
         if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
-          arg_base = [ valuesAssets[ asset ]['location'], dataLocal, wkt_geom, acquired ]
+          arg_base = [ valuesAssets[ asset ]['location'] ] + arg_core
           arg = [ asset] + arg_base
           if not createImage( *arg ):
             break # Cancel by user
