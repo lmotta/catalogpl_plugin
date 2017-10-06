@@ -24,8 +24,8 @@ from PyQt4.QtGui  import ( QAction, QColor )
 from PyQt4.QtXml import QDomDocument
 
 import qgis
-from qgis.gui import ( QgsRubberBand, QgsHighlight ) 
-from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry,
+from qgis.gui import ( QgsRubberBand, QgsHighlight, QgsMessageBar ) 
+from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry, QgsFeatureRequest,
                         QgsCoordinateTransform, QgsCoordinateReferenceSystem )
 
 class PolygonEffectsCanvas():
@@ -65,7 +65,7 @@ class PolygonEffectsCanvas():
     QTimer.singleShot( seconds*1000, removeRB )
 
 class LegendRaster(object):
-  def __init__(self, labelMenu):
+  def __init__(self, pluginName):
     def initLegendLayer():
       self.legendLayer = [
         {
@@ -79,17 +79,25 @@ class LegendRaster(object):
           'id': "idZoom",
           'slot': self.zoom,
           'action': None
+        },
+        {
+          'menu': u"Open form(table)",
+          'id': "idForm",
+          'slot': self.openForm,
+          'action': None
         }
       ]
       for item in self.legendLayer:
         item['action'] = QAction( item['menu'], None )
         item['action'].triggered.connect( item['slot'] )
-        self.legendInterface.addLegendLayerAction( item['action'], labelMenu, item['id'], QgsMapLayer.RasterLayer, False )
+        self.legendInterface.addLegendLayerAction( item['action'], self.pluginName, item['id'], QgsMapLayer.RasterLayer, False )
 
+    self.pluginName = pluginName
+    self.msgBar = qgis.utils.iface.messageBar()
     self.legendInterface = qgis.utils.iface.legendInterface()
     initLegendLayer() # Set self.legendLayer 
     self.polygonEC = PolygonEffectsCanvas()
-
+    
   def __del__(self):
     for item in self.legendLayer:
       self.legendInterface.removeLegendLayerAction( item['action'] )
@@ -113,9 +121,13 @@ class LegendRaster(object):
     geom = QgsGeometry.fromRect( layer.extent() )
     self.polygonEC.highlight( geom )
 
+  @pyqtSlot()
+  def openForm(self):
+    pass
+
 class LegendTMSXml(LegendRaster):
-  def __init__(self, labelMenu):
-     super(LegendRasterGeom, self).__init__( labelMenu )
+  def __init__(self, pluginName):
+     super(LegendRasterGeom, self).__init__( pluginName )
 
   def _getExtent(self, layer):
     def getTargetWindow():
@@ -156,8 +168,8 @@ class LegendTMSXml(LegendRaster):
     self.polygonEC.highlight( geom )
 
 class LegendRasterGeom(LegendRaster):
-  def __init__(self, labelMenu):
-     super(LegendRasterGeom, self).__init__( labelMenu )
+  def __init__(self, pluginName):
+     super(LegendRasterGeom, self).__init__( pluginName )
 
   def _getGeometry(self, layer):
     wkt_geom = layer.customProperty('wkt_geom')
@@ -177,3 +189,26 @@ class LegendRasterGeom(LegendRaster):
     geom = self._getGeometry( layer )
     self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.highlight( geom )
+
+  @pyqtSlot()
+  def openForm(self):
+    layer = self.legendInterface.currentLayer()
+    id_table = layer.customProperty('id_table')
+    layers_table = [ l for l in self.legendInterface.layers() if id_table == l.id() ]
+    if len( layers_table ) == 0:
+      msg = "Layer used for create this image not found."
+      arg = ( self.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      self.msgBar.pushMessage( *arg )
+      return
+    table = layers_table[0]
+    id_image = layer.customProperty('id_image')
+    request = QgsFeatureRequest().setFilterExpression( u'"id" = \'{0}\''.format( id_image ) )
+    request.setFlags( QgsFeatureRequest.NoGeometry )
+    feats = [ f for f in table.getFeatures(request) ]
+    if len( feats ) == 0:
+      msg = "Image '{}' not found in '{}'.".format( id_image, table.name() )
+      arg = ( self.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      self.msgBar.pushMessage( *arg )
+      return
+    form = qgis.utils.iface.getFeatureForm( table, feats[0] )
+    form.show()

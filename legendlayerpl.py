@@ -19,6 +19,8 @@ email                : motta.luiz@gmail.com
  ***************************************************************************/
 """
 
+import os, shutil
+
 from PyQt4.QtCore import ( pyqtSlot, QSettings, QDir, QDate, QFile, QIODevice, QTimer )
 from PyQt4.QtGui  import (
      QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox,
@@ -41,10 +43,27 @@ class DialogImageSettingPL(QDialog):
   def __init__(self, parent, icon=None, data=None):
     def initGui():
       def setData():
+        def getSizeCacheTMS():
+          dirs = self._getDirsCacheTMS()
+          if len( dirs ) == 0:
+            return 0
+
+          total_size = 0
+          for path in dirs: 
+            for dirpath, dirnames, filenames in os.walk(path):
+              for f in filenames:
+                fp = os.path.join( dirpath, f )
+                total_size += os.path.getsize(fp) / 1024.0 # KB
+          return total_size/1024.0   # in MB
+
         w = self.findChild( QRadioButton, self.data['current_asset'] )
         w.setChecked(True)
         checkUdm.setChecked( self.data['udm'] )
         buttonPath.setText( self.data['path'] )
+        total = getSizeCacheTMS()
+        if total > 0:
+          buttonClearCache.setText( self.titleClearCache.format( total ) )
+          buttonClearCache.setEnabled(True)
         d1 = self.data['date1']
         d2 = self.data['date2']
         date1.setDate( d1 )
@@ -56,6 +75,7 @@ class DialogImageSettingPL(QDialog):
       def connect():
         buttonOK.clicked.connect( self.onOK )
         buttonPath.clicked.connect( self.onPath )
+        buttonClearCache.clicked.connect( self.onClearCache )
         date1.dateChanged.connect( self.onDateChanged1 )
         date2.dateChanged.connect( self.onDateChanged2 )
         spinDay.valueChanged.connect( self.onValueChanged )
@@ -84,7 +104,7 @@ class DialogImageSettingPL(QDialog):
         if not layout is None:
           layout.addWidget( widget )
 
-      windowTitle = "Setting download images Planet Labs"
+      windowTitle = "Setting Planet Labs"
       self.setWindowTitle( windowTitle )
       self.setWindowIcon( icon )
 
@@ -99,10 +119,15 @@ class DialogImageSettingPL(QDialog):
       buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
       buttonPath.setObjectName('path')
 
+      buttonClearCache = QPushButton( self.titleClearCache.format(0), grpImage )
+      buttonClearCache.setObjectName('clear_cache')
+      buttonClearCache.setEnabled(False)
+
       lytImage = QVBoxLayout( grpImage )
       lytImage.addLayout( lytAssets )
       lytImage.addWidget( checkUdm )
       lytImage.addWidget( buttonPath )
+      lytImage.addWidget( buttonClearCache )
 
       grpDateSearch = QGroupBox('Dates for search', self )
       lytDate = QHBoxLayout( grpDateSearch )
@@ -142,6 +167,7 @@ class DialogImageSettingPL(QDialog):
     super( DialogImageSettingPL, self ).__init__( parent )
     self.data = data
     self.titleSelectDirectory = "Select download directory"
+    self.titleClearCache = "Clear TMS cache (total {:0.2f}MB)"
     self.nameAssets = ('planet', 'rapideye', 'landsat8', 'sentinel2')
     initGui()
 
@@ -166,6 +192,14 @@ class DialogImageSettingPL(QDialog):
     spinDay.valueChanged.disconnect( self.onValueChanged )
     spinDay.setValue( date1.daysTo( date2) )
     spinDay.valueChanged.connect( self.onValueChanged )
+
+  def _getDirsCacheTMS(self):
+    w = self.findChild( QPushButton, 'path' )
+    tmsDir = os.path.join( w.text(), 'tms' )
+    if not os.path.isdir( tmsDir ):
+      return []
+    dirs = [os.path.join(tmsDir, d) for d in os.listdir(tmsDir) if os.path.isdir(os.path.join(tmsDir, d))]
+    return dirs
 
   @staticmethod
   def getSettings():
@@ -200,8 +234,8 @@ class DialogImageSettingPL(QDialog):
 
     return data
 
-  @pyqtSlot( bool )
-  def onOK(self, checked):
+  @pyqtSlot()
+  def onOK(self):
     def getCurrentNameAsset():
       for name in self.nameAssets:
         w = self.findChild( QRadioButton, name )
@@ -228,15 +262,26 @@ class DialogImageSettingPL(QDialog):
     self.data['isOk'] = True
     self.accept()
 
-  @pyqtSlot( bool )
-  def onPath(self, checked):
-    pb = self.findChild( QPushButton, 'path' )
-    path = pb.text()
+  @pyqtSlot()
+  def onPath(self):
+    w = self.findChild( QPushButton, 'path' )
+    path = w.text()
     if path == self.titleSelectDirectory:
       path = None
     sdir = QFileDialog.getExistingDirectory(self, self.titleSelectDirectory, path )
     if len(sdir) > 0:
       pb.setText( sdir )
+
+  @pyqtSlot()
+  def onClearCache(self):
+    dirs = self._getDirsCacheTMS()
+    if not len( dirs ) == 0:
+      for d in dirs:
+        shutil.rmtree(d)
+    title = self.titleClearCache.format(0)
+    w = self.findChild( QPushButton, 'clear_cache' )
+    w.setText( title )
+    w.setEnabled(False)
 
   @pyqtSlot( 'QDate' )
   def onDateChanged1(self, date ):
@@ -323,7 +368,7 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Search settings",
+          'menu': u"Settings",
           'id': self.legendMenuIDs['setting_images'],
           'slot': self.slots['setting_images'],
           'action': None

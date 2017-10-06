@@ -35,7 +35,7 @@ from qgis.gui  import ( QgsMessageBar, QgsRubberBand )
 
 from apiqtpl import API_PlanetLabs
 from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
-from legendlayer import ( LegendRasterGeom )
+from legendlayer import LegendRasterGeom
 
 from managerloginkey import ManagerLoginKey
 
@@ -139,7 +139,6 @@ class MessageBarCancel(QObject):
     self.isCancel = True
 
 class WorkerCreateTMS_GDAL_WMS(QObject):
-
   finished = pyqtSignal( dict )
   stepProgress = pyqtSignal( int )
 
@@ -150,7 +149,8 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
     self.path = self.ctTMS = self.iterFeat = None # setting
     self.ltgRoot = self.ltgCatalog = None # setting
 
-  def setting(self, path, ctTMS, iterFeat, ltgRoot, ltgCatalog):
+  def setting(self, id_layer, path, ctTMS, iterFeat, ltgRoot, ltgCatalog):
+   self.id_table = id_layer
    self.path = path
    self.ctTMS = ctTMS
    self.iterFeat = iterFeat
@@ -220,10 +220,11 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
         geomTransf = QgsGeometry(feat.geometry() )
         geomTransf.transform( self.ctTMS )
         wkt_geom = geomTransf.exportToWkt()
-        acquired = feat['acquired']
         layer = QgsRasterLayer( image, os.path.split( image )[-1] )
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
-        layer.setCustomProperty( 'date', acquired )
+        layer.setCustomProperty( 'date', feat['acquired'] )
+        layer.setCustomProperty( 'id_table', self.id_table )
+        layer.setCustomProperty( 'id_image', feat['id'] )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer).setVisible( Qt.Unchecked )
         self.legendRasterGeom.setLayer( layer )
@@ -264,6 +265,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
 
 # Check change in WorkerCreateTMS_GDAL_WMS(path,...)
 # Not Runnig!
+
 class WorkerCreateTMS_ServerXYZ(QObject):
 
   finished = pyqtSignal( dict )
@@ -472,8 +474,8 @@ class CatalogPL(QObject):
     self.msgBar.clearWidgets()
     self.msgBar.pushMessage( self.pluginName, msg, typMessage, 4 )
 
-  def _setGroupCatalog(self, ltgRoot):
-    nameGroup = "{0} - Catalog".format( self.layer.name() )
+  def _setGroupCatalog(self, ltgRoot, typeCatalog):
+    nameGroup = "{0} - Catalog {1}".format( self.layer.name(), typeCatalog )
     self.ltgCatalog = ltgRoot.findGroup( nameGroup  )
     if self.ltgCatalog is None:
       self.ltgCatalog = ltgRoot.addGroup( nameGroup )
@@ -517,15 +519,36 @@ class CatalogPL(QObject):
     return { 'isOk': False }
 
   def _sortGroupCatalog(self, reverse=True):
-    ltls = self.ltgCatalog.findLayers()
-    if len( ltls ) == 0:
-      return
-    layers = [ ltl.layer() for ltl in ltls ] 
-    layers.sort( key=lambda l: l.customProperty('date', None), reverse=reverse )
-    totalLayers = len( layers )
-    for idx, lyr in enumerate( layers ):
-      self.ltgCatalog.insertLayer( idx, lyr).setVisible( Qt.Unchecked )
-    self.ltgCatalog.removeChildren( totalLayers, totalLayers )
+    def getLayers():
+      ltls = self.ltgCatalog.findLayers()
+      if len( ltls ) == 0:
+        return
+      layers = [ ltl.layer() for ltl in ltls ] 
+      return layers
+
+    def getGroupsDate(layers):
+      groupDates =  {} # 'date': layers }
+      for l in layers:
+        date = l.customProperty('date', '_errorT').split('T')[0]
+        if not date in groupDates.keys():
+          groupDates[ date ] = [ l ]
+        else:
+          groupDates[ date ].append( l )
+      return groupDates
+
+    def addGroupDates(groupDates):
+      keys = sorted(groupDates.keys(), reverse=reverse )
+      for idx, key in enumerate( keys ):
+        name = "{0} [{1}]".format( key, len( groupDates[ key ] ) )
+        ltg = self.ltgCatalog.insertGroup( idx, name )
+        for l in groupDates[ key ]:
+          ltg.addLayer( l ).setVisible( Qt.Unchecked )
+        ltg.setExpanded(False)
+      self.ltgCatalog.removeChildren( len( keys), len( layers) )
+
+    layers = getLayers()
+    groupDates = getGroupsDate( layers )
+    addGroupDates( groupDates )
 
   def hostLive(self):
     def setFinished(response):
@@ -601,8 +624,9 @@ class CatalogPL(QObject):
       l_fields.append( "index=yes" )
       uri = '&'.join( l_fields )
       vl = QgsVectorLayer( uri, "pl_scenes", "memory" )
-      self.layer = QgsMapLayerRegistry.instance().addMapLayer( vl )
-      self.layerTree = QgsProject.instance().layerTreeRoot().findLayer( self.layer.id() )
+      self.layer = QgsMapLayerRegistry.instance().addMapLayer( vl, addToLegend=False )
+      ltgRoot = QgsProject.instance().layerTreeRoot()
+      self.layerTree = ltgRoot.insertLayer(0, self.layer )
       self.layer.loadNamedStyle( os.path.join( os.path.dirname( __file__ ), CatalogPL.styleFile ) )
       qgis.utils.iface.legendInterface().refreshLayerSymbology( self.layer )
 
@@ -929,7 +953,7 @@ class CatalogPL(QObject):
       self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog( ltgRoot )
+    self._setGroupCatalog( ltgRoot, 'TMS' )
 
     r = self._startProcess( self.worker.kill )
     if not r['isOk']:
@@ -1077,7 +1101,7 @@ class CatalogPL(QObject):
       self._endProcessing( "Create TMS", message['totalError'] )
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog( ltgRoot )
+    self._setGroupCatalog( ltgRoot, 'TMS' )
 
     r = self._startProcess( self.worker.kill )
     if not r['isOk']:
@@ -1091,10 +1115,12 @@ class CatalogPL(QObject):
     ctTMS = QgsCoordinateTransform( self.layer.crs(), cr3857 )
 
     self.worker.finished.connect( finished )
-    self.worker.setting( path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
+    arg = ( self.layer.id(), path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
+    self.worker.setting( *arg )
+    
     self.worker.stepProgress.connect( self.mbcancel.step )
-    #self.thread.start() # Start Worker
-    self.worker.run() #DEBUGER
+    self.thread.start() # Start Worker
+    #self.worker.run() #DEBUGER
 
   @pyqtSlot()
   def downloadThumbnails(self):
@@ -1170,7 +1196,7 @@ class CatalogPL(QObject):
 
   @pyqtSlot()
   def downloadImages(self):
-    def createImage(suffix, location, geom, v_crs, acquired, dataLocal, add_image=False):
+    def createImage(suffix, location, id_table, geom, v_crs, acquired, id_image, dataLocal, add_image=False):
       def setFinished( response ):
         self.imageDownload.flush()
         self.imageDownload.close()
@@ -1203,8 +1229,10 @@ class CatalogPL(QObject):
         wkt_geom = geomTransf.exportToWkt()
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
         layer.setCustomProperty( 'date', acquired )
+        layer.setCustomProperty( 'id_table', id_table )
+        layer.setCustomProperty( 'id_image', id_image )
         QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
-        self.ltgCatalog.addLayer( layer)
+        self.ltgCatalog.addLayer( layer )
         self.legendRasterGeom.setLayer( layer )
       
       arg = ( path_img, u"{0}_{1}.tif".format( feat['id'], suffix ) )
@@ -1231,7 +1259,7 @@ class CatalogPL(QObject):
       return True # Not cancel by user
 
     ltgRoot = QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog(ltgRoot)
+    self._setGroupCatalog( ltgRoot, 'TIF' )
 
     r = self._startProcess( self.apiPL.kill, True )
     if not r['isOk']:
@@ -1243,6 +1271,7 @@ class CatalogPL(QObject):
       os.makedirs( path_img )
       
     crsLayer = self.layer.crs()
+    id_table = self.layer.id()
     dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
     self.totalReady = None
     loop = QEventLoop()
@@ -1250,7 +1279,7 @@ class CatalogPL(QObject):
       dataLocal['step'] += 1
       meta_json = json.loads( feat['meta_json'] )
       valuesAssets = self._getValuesAssets( meta_json['assets_status'] )
-      arg_core = [ feat.geometry(), crsLayer, feat['acquired'], dataLocal ]
+      arg_core = [ id_table, feat.geometry(), crsLayer, feat['acquired'], feat['id'], dataLocal ]
       asset = 'analytic'
       if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
         arg_base = [ valuesAssets[ asset ]['location'] ] + arg_core
