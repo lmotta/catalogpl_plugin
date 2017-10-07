@@ -14,7 +14,7 @@ You need a key from Planet Labs in order to use this plugin.
 This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
 With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
 add TMS images.
-See presentation: * It will be made as soon
+See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis
 Tested with QGIS 2.18.13
 
 ## Author
