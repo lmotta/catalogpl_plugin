@@ -23,7 +23,8 @@ Luiz Motta
 ## Changelog
 - 2017-10-06
 Add groups of images with same date,
-add menu Open Form in images and clear cache of TMS.
+add menu Open Form in images, clear cache of TMS, and
+add action 'Add selection' to pl_scenes
 - 2017-10-04
 Reverse images order in group catalog, add directories,
 tms, tif, thumbnail, inside download directory 

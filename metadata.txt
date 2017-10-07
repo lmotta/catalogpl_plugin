@@ -15,7 +15,7 @@ category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
 changelog=1.6
-  Add groups of images with same date, add menu Open Form in images and clear cache of TMS.
+  Add groups of images with same date, add menu Open Form in images, clear cache of TMS, and add action 'Add selection' to pl_scenes.
   1.5
   Reverse images order in group catalog, add directories,
   tms, tif, thumbnail, inside download directory 
