@@ -271,7 +271,7 @@ class DialogImageSettingPL(QDialog):
       path = None
     sdir = QFileDialog.getExistingDirectory(self, self.titleSelectDirectory, path )
     if len(sdir) > 0:
-      pb.setText( sdir )
+      w.setText( sdir )
 
   @pyqtSlot()
   def onClearCache(self):
@@ -369,7 +369,7 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Settings",
+          'menu': u"Settings...",
           'id': self.legendMenuIDs['setting_images'],
           'slot': self.slots['setting_images'],
           'action': None
