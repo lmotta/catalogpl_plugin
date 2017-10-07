@@ -51,6 +51,7 @@ class DialogImageSettingPL(QDialog):
           total_size = 0
           for path in dirs: 
             for dirpath, dirnames, filenames in os.walk(path):
+              total_size += os.path.getsize(dirpath) / 1024.0 # KB
               for f in filenames:
                 fp = os.path.join( dirpath, f )
                 total_size += os.path.getsize(fp) / 1024.0 # KB
