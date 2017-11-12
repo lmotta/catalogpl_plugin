@@ -18,9 +18,9 @@ email                : motta.luiz@gmail.com
  *                                                                         *
  ***************************************************************************/
 """
+import os
 
 from PyQt4 import QtCore, QtGui
-
 from qgis import core as QgsCore, gui as QgsGui
 
 
