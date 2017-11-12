@@ -27,107 +27,8 @@ from qgis import core as QgsCore, gui as QgsGui, utils as QgsUtils
 from apiqtpl import API_PlanetLabs
 from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
 from legendlayer import LegendRasterGeom
-
 from managerloginkey import ManagerLoginKey
-
-class MessageBarCancelProgressDownload(QtCore.QObject):
-
-  def __init__(self, msgBar, msg, maximum, funcKill, hasProgressFile=False):
-    def initGui():
-      self.pb = QtGui.QProgressBar( self.msgBar )
-      self.pb.setAlignment( QtCore.Qt.AlignLeft )
-      self.lb = QtGui.QLabel( self.msgBar )
-      self.tbCancel = QtGui.QToolButton( self.msgBar )
-      self.tbCancel.setIcon( QgsCore.QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
-      self.tbCancel.setToolTip( "Cancel download")
-      self.tbCancel.setText( "Cancel")
-      self.tbCancel.setToolButtonStyle( QtCore.Qt.ToolButtonTextBesideIcon )
-      self.widget = self.msgBar.createMessage( CatalogPL.pluginName, msg )
-
-      widgets = [ self.tbCancel, self.lb, self.pb ]
-      lyt = self.widget.layout()
-      for item in widgets:
-        lyt.addWidget( item )
-      del widgets[:]
-
-      if hasProgressFile:
-        self.pbFile = QtGui.QProgressBar( self.msgBar )
-        self.pbFile.setAlignment( QtCore.Qt.AlignLeft )
-        self.pbFile.setValue( 1 )
-        lyt.addWidget( self.pbFile )
-
-    super(MessageBarCancelProgressDownload, self).__init__()
-    ( self.msgBar, self.maximum ) = ( msgBar, maximum )
-    self.pb = self.lb = self.widget = self.isCancel = self.pbFile = None
-    initGui()
-    self.tbCancel.clicked.connect( self.clickedCancel )
-    self.pb.destroyed.connect( self.destroyed)
-
-    self.msgBar.pushWidget( self.widget, QgsGui.QgsMessageBar.INFO )
-    self.pb.setValue( 1 )
-    self.pb.setMaximum( maximum )
-    self.isCancel = False
-    self.kill = funcKill
-
-  def step(self, value, image=None):
-    if self.pb is None:
-      return
-    
-    self.pb.setValue( value )
-    self.lb.setText( "%d/%d" % ( value, self.maximum ) )
-    if not image is None:
-      self.pbFile.setToolTip( image )
-      self.pbFile.setFormat( "%p% " + os.path.split( image )[-1] )
-
-  @QtCore.pyqtSlot(QtCore.QObject)
-  def destroyed(self, obj):
-    self.pb = None
-
-  @QtCore.pyqtSlot(bool)
-  def clickedCancel(self, checked):
-    if self.pb is None:
-      return
-    self.kill()
-    self.isCancel = True
-
-  @QtCore.pyqtSlot(int, int)
-  def stepFile(self, bytesReceived, bytesTotal):
-    if self.pb is None:
-      return
-
-    self.pbFile.setMaximum( bytesTotal )
-    self.pbFile.setValue( bytesReceived )
-
-class MessageBarCancel(QtCore.QObject):
-
-  def __init__(self, msgBar, msg, funcKill):
-    def initGui():
-      self.tbCancel = QtGui.QToolButton( msgBar )
-      self.tbCancel.setIcon( QgsCore.QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
-      self.tbCancel.setText( "Cancel")
-      self.tbCancel.setToolButtonStyle( QtCore.Qt.ToolButtonTextBesideIcon )
-      self.widget = msgBar.createMessage( CatalogPL.pluginName, msg )
-
-      lyt = self.widget.layout()
-      lyt.addWidget( self.tbCancel )
-
-    super(MessageBarCancel, self).__init__()
-    self.widget = self.isCancel = None
-    initGui()
-    self.tbCancel.clicked.connect( self.clickedCancel )
-
-    msgBar.pushWidget( self.widget, QgsGui.QgsMessageBar.INFO )
-    self.isCancel = False
-    self.kill = funcKill
-
-  def message(self, msg):
-    if not self.isCancel:
-      self.widget.setText( msg )
-
-  @QtCore.pyqtSlot(bool)
-  def clickedCancel(self, checked):
-    self.kill()
-    self.isCancel = True
+from messagebarcancel import MessageBarCancel, MessageBarCancelProgress
 
 class WorkerCreateTMS_GDAL_WMS(QtCore.QObject):
   finished = QtCore.pyqtSignal( dict )
@@ -433,7 +334,7 @@ class CatalogPL(QtCore.QObject):
 
     msg = "selected" if hasSelected else "all"
     msg = "Processing {0} images({1})...".format( totalFeat, msg )
-    arg = ( self.msgBar, msg, totalFeat, funcKill, hasProgressFile )
+    arg = ( CatalogPL.pluginName, self.msgBar, msg, totalFeat, funcKill, hasProgressFile )
     self.mbcancel = MessageBarCancelProgressDownload( *arg )
     self.enableRun.emit( False )
     self.legendCatalogLayer.enabledProcessing( False )
@@ -829,7 +730,7 @@ class CatalogPL(QtCore.QObject):
       self.msgBar.popWidget()
       item_types = ",".join( json_request['item_types'] )
       msg = "Item types: {2}".format( date2, days, item_types )
-      self.mbcancel = MessageBarCancel( self.msgBar, msg, self.apiPL.kill )
+      self.mbcancel = MessageBarCancel( CatalogPL.pluginName, self.msgBar, msg, self.apiPL.kill )
       self.total_features_scenes = 0
 
       prov = self.layer.dataProvider()
