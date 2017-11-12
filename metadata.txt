@@ -7,14 +7,16 @@ about=This plugin lets you get images from the Planet Labs API(Version 1), by pe
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
   With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
   add TMS images.
-  See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis
+  See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis-v1
   Tested with QGIS 2.18.13
-version=1.6
+version=1.7
 qgisMinimumVersion=2.18
 category=Raster
 author=Luiz Motta
 email=motta.luiz@gmail.com
-changelog=1.6
+changelog=1.7
+  Change menus, catalog group, scene layer, count total dates. Fixed use in Windows
+  1.6
   Add groups of images with same date, add menu Open Form in images, clear cache of TMS, and add action 'Add selection' to pl_scenes.
   1.5
   Reverse images order in group catalog, add directories,

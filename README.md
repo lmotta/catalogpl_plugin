@@ -14,13 +14,15 @@ You need a key from Planet Labs in order to use this plugin.
 This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
 With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
 add TMS images.
-See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis
+See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis-v1
 Tested with QGIS 2.18.13
 
 ## Author
 Luiz Motta
 
 ## Changelog
+- 2017-11-12
+Change menus, catalog group, scene layer, count total dates. Fixed use in Windows
 - 2017-10-06
 Add groups of images with same date,
 add menu Open Form in images, clear cache of TMS, and
