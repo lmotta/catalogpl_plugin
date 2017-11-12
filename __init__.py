@@ -21,10 +21,8 @@ email                : motta.luiz@gmail.com
 
 import os
 
-from PyQt4.QtGui import ( QAction, QIcon )
-from PyQt4.QtCore import ( pyqtSlot, QEventLoop )
-
-from qgis.gui import QgsMessageBar
+from PyQt4 import QtCore, QtGui
+from qgis import core as QgsCore, gui as QgsGui
 
 from catalogpl import CatalogPL
 from apiqtpl import API_PlanetLabs
@@ -34,7 +32,7 @@ def classFactory(iface):
 
 class CatalogPLPlugin:
 
-  icon = QIcon( os.path.join( os.path.dirname(__file__), 'catalogpl.svg' ) )
+  icon = QtGui.QIcon( os.path.join( os.path.dirname(__file__), 'catalogpl.svg' ) )
   pluginName = "Catalog Planet Labs"
 
   def __init__(self, iface):
@@ -49,7 +47,7 @@ class CatalogPLPlugin:
     
   def initGui(self):
     msgtrans = "Catalog Planet Labs"
-    self.action = QAction( CatalogPLPlugin.icon, msgtrans, self.iface.mainWindow() )
+    self.action = QtGui.QAction( CatalogPLPlugin.icon, msgtrans, self.iface.mainWindow() )
     self.action.setObjectName("CatalogPL")
     self.action.setWhatsThis( msgtrans )
     self.action.setStatusTip( msgtrans )
@@ -65,12 +63,12 @@ class CatalogPLPlugin:
     del self.action
     del self.ctl
   
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def run(self):
 
     if self.iface.mapCanvas().layerCount() == 0:
       msg = "Need layer(s) in map"
-      self.iface.messageBar().pushMessage( CatalogPLPlugin.pluginName, msg, QgsMessageBar.WARNING, 2 )
+      self.iface.messageBar().pushMessage( CatalogPLPlugin.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 2 )
       return
 
     if not self.ctl.isHostLive:

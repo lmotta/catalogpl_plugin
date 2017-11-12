@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 /***************************************************************************
-Name                 : Qt API for Catalog Planet Labs 
+Name                 : QtCore.Qt API for Catalog Planet Labs 
 Description          : API for Planet Labs
 Date                 : May, 2015
 copyright            : (C) 2015 by Luiz Motta
@@ -21,18 +21,15 @@ email                : motta.luiz@gmail.com
 
 import json, datetime
 
+from PyQt4 import QtCore, QtGui, QtNetwork
 
-from PyQt4.QtCore import ( Qt, QObject, QByteArray, QUrl, pyqtSignal, pyqtSlot )
-from PyQt4.QtNetwork import ( QNetworkAccessManager, QNetworkRequest, QNetworkReply )
-from PyQt4.QtGui import( QPixmap )
-
-class AccessSite(QObject):
+class AccessSite(QtCore.QObject):
 
   # Signals
-  finished = pyqtSignal( dict)
-  send_data = pyqtSignal(QByteArray)
-  status_download = pyqtSignal(int, int)
-  status_erros = pyqtSignal(list)
+  finished = QtCore.pyqtSignal( dict)
+  send_data = QtCore.pyqtSignal(QtCore.QByteArray)
+  status_download = QtCore.pyqtSignal(int, int)
+  status_erros = QtCore.pyqtSignal(list)
   
   ErrorCodeAttribute = { 
      10: 'Canceled request',
@@ -48,7 +45,7 @@ class AccessSite(QObject):
 
   def __init__(self):
     super( AccessSite, self ).__init__()
-    self.networkAccess = QNetworkAccessManager(self)
+    self.networkAccess = QtNetwork.QNetworkAccessManager(self)
     self.totalReady = self.reply = self.triedAuthentication = self.isKilled = None
     # Input by self.run
     self.credential = self.responseAllFinished = None
@@ -60,12 +57,12 @@ class AccessSite(QObject):
     self._connect()
     self.totalReady = 0
     self.isKilled = False
-    request = QNetworkRequest( url )
+    request = QtNetwork.QNetworkRequest( url )
     if json_request is None:
       reply = self.networkAccess.get( request )
     else:
-      request.setHeader( QNetworkRequest.ContentTypeHeader, "application/json" )
-      data = QByteArray( json.dumps( json_request ) )
+      request.setHeader( QtNetwork.QNetworkRequest.ContentTypeHeader, "application/json" )
+      data = QtCore.QByteArray( json.dumps( json_request ) )
       reply = self.networkAccess.post( request, data )
     if reply is None:
       response = { 'isOk': False, 'message': "Network error", 'errorCode': -1 }
@@ -122,7 +119,7 @@ class AccessSite(QObject):
     if url.isRelative():
       url = url.resolved( url )
 
-    request = QNetworkRequest( url )
+    request = QtNetwork.QNetworkRequest( url )
     reply = self.networkAccess.get( request )
     if reply is None:
       response = { 'isOk': False, 'message': "Netwok error", 'errorCode': -1 }
@@ -139,33 +136,33 @@ class AccessSite(QObject):
     self._clearConnect()
     self.finished.emit( response )
 
-  @pyqtSlot('QNetworkReply')
+  @QtCore.pyqtSlot(QtNetwork.QNetworkReply)
   def replyFinished(self, reply) :
     if self.isKilled:
       self._errorCodeAttribute(10)
 
-    if reply.error() != QNetworkReply.NoError :
+    if reply.error() != QtNetwork.QNetworkReply.NoError :
       response = { 'isOk': False, 'message': reply.errorString(), 'errorCode': reply.error() }
       self._clearConnect()
       self.finished.emit( response )
       return
 
-    urlRedir = reply.attribute( QNetworkRequest.RedirectionTargetAttribute )
+    urlRedir = reply.attribute( QtNetwork.QNetworkRequest.RedirectionTargetAttribute )
     if not urlRedir is None and urlRedir != reply.url():
       self._redirectionReply( urlRedir )
       return
 
-    codeAttribute = reply.attribute( QNetworkRequest.HttpStatusCodeAttribute )
+    codeAttribute = reply.attribute( QtNetwork.QNetworkRequest.HttpStatusCodeAttribute )
     if codeAttribute != 200:
       self._errorCodeAttribute( codeAttribute )
       return
 
     statusRequest = {
-      'contentTypeHeader': reply.header( QNetworkRequest.ContentTypeHeader ),
-      'lastModifiedHeader': reply.header( QNetworkRequest.LastModifiedHeader ),
-      'contentLengthHeader': reply.header( QNetworkRequest.ContentLengthHeader ),
-      'statusCodeAttribute': reply.attribute( QNetworkRequest.HttpStatusCodeAttribute ),
-      'reasonPhraseAttribute': reply.attribute( QNetworkRequest.HttpReasonPhraseAttribute )
+      'contentTypeHeader': reply.header( QtNetwork.QNetworkRequest.ContentTypeHeader ),
+      'lastModifiedHeader': reply.header( QtNetwork.QNetworkRequest.LastModifiedHeader ),
+      'contentLengthHeader': reply.header( QtNetwork.QNetworkRequest.ContentLengthHeader ),
+      'statusCodeAttribute': reply.attribute( QtNetwork.QNetworkRequest.HttpStatusCodeAttribute ),
+      'reasonPhraseAttribute': reply.attribute( QtNetwork.QNetworkRequest.HttpReasonPhraseAttribute )
     }
     response = { 'isOk': True, 'statusRequest': statusRequest }
     if self.responseAllFinished:
@@ -176,7 +173,7 @@ class AccessSite(QObject):
     self._clearConnect()
     self.finished.emit( response )
 
-  @pyqtSlot('QNetworkReply', 'QAuthenticator')
+  @QtCore.pyqtSlot(QtNetwork.QNetworkReply, QtNetwork.QAuthenticator)
   def authenticationRequired (self, reply, authenticator):
     if not self.triedAuthentication: 
       authenticator.setUser( self.credential['user'] ) 
@@ -185,7 +182,7 @@ class AccessSite(QObject):
     else:
       self._errorCodeAttribute( 401 )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def readyRead(self):
     if self.isKilled:
       self._errorCodeAttribute(10)
@@ -194,12 +191,12 @@ class AccessSite(QObject):
     if self.responseAllFinished:
       return
 
-    urlRedir = self.reply.attribute( QNetworkRequest.RedirectionTargetAttribute )
+    urlRedir = self.reply.attribute( QtNetwork.QNetworkRequest.RedirectionTargetAttribute )
     if not urlRedir is None and urlRedir != self.reply.url():
       self._redirectionReply( urlRedir )
       return
 
-    codeAttribute = self.reply.attribute( QNetworkRequest.HttpStatusCodeAttribute )
+    codeAttribute = self.reply.attribute( QtNetwork.QNetworkRequest.HttpStatusCodeAttribute )
     if codeAttribute != 200:
       self._errorCodeAttribute( codeAttribute )
       return
@@ -210,21 +207,21 @@ class AccessSite(QObject):
     self.totalReady += len ( data )
     self.send_data.emit( data )
 
-  @pyqtSlot(int, int)
+  @QtCore.pyqtSlot(int, int)
   def downloadProgress(self, bytesReceived, bytesTotal):
     if self.isKilled:
       self._errorCodeAttribute(10)
     else:
       self.status_download.emit( bytesReceived, bytesTotal )
 
-  @pyqtSlot( list )
+  @QtCore.pyqtSlot( list )
   def sslErrors(self, errors):
     lstErros = map( lambda e: e.errorString(), errors )
     self.status_erros.emit( lstErros )
     self.reply.ignoreSslErrors()
 
 
-class API_PlanetLabs(QObject):
+class API_PlanetLabs(QtCore.QObject):
 
   errorCodeLimitOK = (201, 207) # https://en.wikipedia.org/wiki/List_of_HTTP_status_codes (2107-09-30)
   errorCodeDownloads =  { # Planet DOC (2107-09-30)
@@ -257,14 +254,14 @@ class API_PlanetLabs(QObject):
     return self.access.isRunning()
 
   def isHostLive(self, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response['isOk']:
         response[ 'isHostLive' ] = True
         self._clearResponse( response )
       else:
-        if response['errorCode'] == QNetworkReply.HostNotFoundError:
+        if response['errorCode'] == QtNetwork.QNetworkReply.HostNotFoundError:
           response[ 'isHostLive' ] = False
           response[ 'message' ] += "\nURL = %s" % API_PlanetLabs.urlRoot
         else:
@@ -273,13 +270,13 @@ class API_PlanetLabs(QObject):
       setFinished( response )
 
     self.currentUrl = API_PlanetLabs.urlRoot
-    url = QUrl( self.currentUrl )
+    url = QtCore.QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     credential = { 'user': '', 'password': ''}
     self.access.run( url, credential )
 
   def setKey(self, key, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response['isOk']:
@@ -289,13 +286,13 @@ class API_PlanetLabs(QObject):
       setFinished( response )
 
     self.currentUrl = API_PlanetLabs.urlRoot
-    url = QUrl( self.currentUrl )
+    url = QtCore.QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     credential = { 'user': key, 'password': ''}
     self.access.run( url, credential )
 
   def getUrlScenes(self, json_request, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
@@ -309,13 +306,13 @@ class API_PlanetLabs(QObject):
       setFinished( response )
 
     self.currentUrl = API_PlanetLabs.urlQuickSearch
-    url = QUrl( self.currentUrl )
+    url = QtCore.QUrl( self.currentUrl )
     self.access.finished.connect( finished )
     credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
     self.access.run( url, credential, json_request=json_request )
 
   def getScenes(self, url, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response):
       self.access.finished.disconnect( finished )
       if response[ 'isOk' ]:
@@ -327,13 +324,13 @@ class API_PlanetLabs(QObject):
       setFinished( response )
 
     self.currentUrl = url
-    url = QUrl.fromEncoded( url )
+    url = QtCore.QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
     credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
     self.access.run( url, credential )
 
   def getAssetsStatus(self, item_type, item_id, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response):
       def setStatus(asset):
         def getDateTimeFormat(d):
@@ -376,18 +373,18 @@ class API_PlanetLabs(QObject):
 
     url = API_PlanetLabs.urlAssets.format(item_type=item_type, item_id=item_id)
     self.currentUrl = url
-    url = QUrl.fromEncoded( url )
+    url = QtCore.QUrl.fromEncoded( url )
 
     self.access.finished.connect( finished )
     credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
     self.access.run( url, credential )
 
   def getThumbnail(self, item_id, item_type, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
       if response['isOk']:
-        pixmap = QPixmap()
+        pixmap = QtGui.QPixmap()
         pixmap.loadFromData( response[ 'data' ] )
         response[ 'pixmap' ] = pixmap
         self._clearResponse( response )
@@ -396,34 +393,34 @@ class API_PlanetLabs(QObject):
 
     url = API_PlanetLabs.urlThumbnail.format( item_type=item_type, item_id=item_id )
     self.currentUrl = url
-    url = QUrl( url )
+    url = QtCore.QUrl( url )
     self.access.finished.connect( finished )
     credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
     self.access.run( url, credential )
 
   def activeAsset(self, url, setFinished):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
       if response['isOk']:
         self._clearResponse( response )
       setFinished( response ) # response[ 'totalReady' ]
       
-    url = QUrl.fromEncoded( url )
-    url = QUrl( url )
+    url = QtCore.QUrl.fromEncoded( url )
+    url = QtCore.QUrl( url )
     self.access.finished.connect( finished )
     credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
     self.access.run( url, credential )
     
   def saveImage(self, url, setFinished, setSave, setProgress):
-    @pyqtSlot(dict)
+    @QtCore.pyqtSlot(dict)
     def finished( response ):
       self.access.finished.disconnect( finished )
       if response['isOk']:
         self._clearResponse( response )
       setFinished( response ) # response[ 'totalReady' ]
       
-    url = QUrl.fromEncoded( url )
+    url = QtCore.QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
     self.access.send_data.connect( setSave )
     self.access.status_download.connect( setProgress )
@@ -438,7 +435,7 @@ class API_PlanetLabs(QObject):
       svalue = str( item[1] )
       items.append( ( skey, svalue ) )
 
-    url = QUrl( API_PlanetLabs.urlScenesOrtho) # urlScenesRapideye
+    url = QtCore.QUrl( API_PlanetLabs.urlScenesOrtho) # urlScenesRapideye
     url.setQueryItems( items )
 
     return url.toEncoded()
@@ -554,7 +551,7 @@ class API_PlanetLabs(QObject):
     def fill_item(item, value):
       item.setExpanded( True )
       if not isinstance( value, ( dict, list ) ):
-        item.setData( 1, Qt.DisplayRole, value )
+        item.setData( 1, QtCore.Qt.DisplayRole, value )
         return
 
       if isinstance( value, dict ):
@@ -568,7 +565,7 @@ class API_PlanetLabs(QObject):
       if isinstance( value, list ):
         for val in value:
           if not isinstance( val, ( dict, list ) ):
-            item.setData( 1, Qt.DisplayRole, val )
+            item.setData( 1, QtCore.Qt.DisplayRole, val )
           else:
             child = QTreeWidgetItem()
             item.addChild( child )

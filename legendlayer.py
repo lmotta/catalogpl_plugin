@@ -19,20 +19,16 @@ email                : motta.luiz@gmail.com
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import ( QObject, QTimer, QFile, QIODevice, pyqtSlot )
-from PyQt4.QtGui  import ( QAction, QColor )
-from PyQt4.QtXml import QDomDocument
+from PyQt4 import QtCore, QtGui, QtXml
 
-import qgis
-from qgis.gui import ( QgsRubberBand, QgsHighlight, QgsMessageBar ) 
-from qgis.core import ( QGis, QgsMapLayer, QgsRectangle, QgsGeometry, QgsFeatureRequest,
-                        QgsCoordinateTransform, QgsCoordinateReferenceSystem )
+from qgis import core as QgsCore, gui as QgsGui, utils as QgsUtils
+
 
 class PolygonEffectsCanvas():
   def __init__(self):
-    self.canvas = qgis.utils.iface.mapCanvas()
+    self.canvas = QgsUtils.iface.mapCanvas()
     self.crs = None #  setCRS if need
-    self.color = QColor(255,0,0)
+    self.color = QtGui.QColor(255,0,0)
 
   def setCRS(self, crs):
     self.crs = crs
@@ -41,7 +37,7 @@ class PolygonEffectsCanvas():
     extentTransform = extent 
     crsCanvas = self.canvas.mapSettings().destinationCrs()
     if not self.crs == crsCanvas:
-      ct = QgsCoordinateTransform( self.crs, crsCanvas )
+      ct = QgsCore.QgsCoordinateTransform( self.crs, crsCanvas )
       extentTransform = ct.transform( extent )
     self.canvas.setExtent( extentTransform )
     self.canvas.zoomByFactor(1.05)
@@ -55,14 +51,14 @@ class PolygonEffectsCanvas():
     geomTransform = geom
     crsCanvas = self.canvas.mapSettings().destinationCrs()
     if not self.crs == crsCanvas:
-      ct = QgsCoordinateTransform( self.crs, crsCanvas )
+      ct = QgsCore.QgsCoordinateTransform( self.crs, crsCanvas )
       geomTransform.transform( ct )
 
-    rb = QgsRubberBand( self.canvas, QGis.Polygon)
+    rb = QgsGui.QgsRubberBand( self.canvas, QgsCore.QGis.Polygon)
     rb.setBorderColor( self.color )
     rb.setWidth(2)
     rb.setToGeometry( geomTransform, None )
-    QTimer.singleShot( seconds*1000, removeRB )
+    QtCore.QTimer.singleShot( seconds*1000, removeRB )
 
 class LegendRaster(object):
   def __init__(self, pluginName):
@@ -88,13 +84,13 @@ class LegendRaster(object):
         }
       ]
       for item in self.legendLayer:
-        item['action'] = QAction( item['menu'], None )
+        item['action'] = QtGui.QAction( item['menu'], None )
         item['action'].triggered.connect( item['slot'] )
-        self.legendInterface.addLegendLayerAction( item['action'], self.pluginName, item['id'], QgsMapLayer.RasterLayer, False )
+        self.legendInterface.addLegendLayerAction( item['action'], self.pluginName, item['id'], QgsCore.QgsMapLayer.RasterLayer, False )
 
     self.pluginName = pluginName
-    self.msgBar = qgis.utils.iface.messageBar()
-    self.legendInterface = qgis.utils.iface.legendInterface()
+    self.msgBar = QgsUtils.iface.messageBar()
+    self.legendInterface = QgsUtils.iface.legendInterface()
     initLegendLayer() # Set self.legendLayer 
     self.polygonEC = PolygonEffectsCanvas()
     
@@ -106,22 +102,22 @@ class LegendRaster(object):
     for item in self.legendLayer:
       self.legendInterface.addLegendLayerActionForLayer( item['action'],  layer )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def zoom(self):
     layer = self.legendInterface.currentLayer()
     extent = layer.extent()
     self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.zoom( extent )
-    geom = QgsGeometry.fromRect( extent )
+    geom = QgsCore.QgsGeometry.fromRect( extent )
     self.polygonEC.highlight( geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def highlight(self):
     layer = self.legendInterface.currentLayer()
-    geom = QgsGeometry.fromRect( layer.extent() )
+    geom = QgsCore.QgsGeometry.fromRect( layer.extent() )
     self.polygonEC.highlight( geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def openForm(self):
     pass
 
@@ -142,28 +138,28 @@ class LegendTMSXml(LegendRaster):
         targetWindow[ value ] = float( text )
       return targetWindow
 
-    doc = QDomDocument()
-    file = QFile( layer.source() )
+    doc = QtXml.QDomDocument()
+    file = QtCore.QFile( layer.source() )
     doc.setContent( file )
     file.close()
 
     tw = getTargetWindow()
-    return QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
+    return QgsCore.QgsRectangle( tw['ulX'], tw['lrY'], tw['lrX'], tw['ulY'] )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def zoom(self):
     layer = self.legendInterface.currentLayer()
     extent = self._getExtent( layer )
     self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.zoom( extent )
-    geom = QgsGeometry.fromRect( extent )
+    geom = QgsCore.QgsGeometry.fromRect( extent )
     self.polygonEC.highlight( geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def highlight(self):
     layer = self.legendInterface.currentLayer()
     extent = self.self._getExtent( layer )
-    geom = QgsGeometry.fromRect( extent )
+    geom = QgsCore.QgsGeometry.fromRect( extent )
     self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.highlight( geom )
 
@@ -173,9 +169,9 @@ class LegendRasterGeom(LegendRaster):
 
   def _getGeometry(self, layer):
     wkt_geom = layer.customProperty('wkt_geom')
-    return QgsGeometry.fromWkt( wkt_geom )
+    return QgsCore.QgsGeometry.fromWkt( wkt_geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def zoom(self):
     layer = self.legendInterface.currentLayer()
     geom = self._getGeometry( layer )
@@ -183,32 +179,32 @@ class LegendRasterGeom(LegendRaster):
     self.polygonEC.zoom( geom.boundingBox() )
     self.polygonEC.highlight( geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def highlight(self):
     layer = self.legendInterface.currentLayer()
     geom = self._getGeometry( layer )
     self.polygonEC.setCRS( layer.crs() )
     self.polygonEC.highlight( geom )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def openForm(self):
     layer = self.legendInterface.currentLayer()
     id_table = layer.customProperty('id_table')
     layers_table = [ l for l in self.legendInterface.layers() if id_table == l.id() ]
     if len( layers_table ) == 0:
       msg = "Layer used for create this image not found."
-      arg = ( self.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      arg = ( self.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 4 ) 
       self.msgBar.pushMessage( *arg )
       return
     table = layers_table[0]
     id_image = layer.customProperty('id_image')
-    request = QgsFeatureRequest().setFilterExpression( u'"id" = \'{0}\''.format( id_image ) )
-    request.setFlags( QgsFeatureRequest.NoGeometry )
+    request = QgsCore.QgsFeatureRequest().setFilterExpression( u'"id" = \'{0}\''.format( id_image ) )
+    request.setFlags( QgsCore.QgsFeatureRequest.NoGeometry )
     feats = [ f for f in table.getFeatures(request) ]
     if len( feats ) == 0:
       msg = "Image '{}' not found in '{}'.".format( id_image, table.name() )
-      arg = ( self.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      arg = ( self.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 4 ) 
       self.msgBar.pushMessage( *arg )
       return
-    form = qgis.utils.iface.getFeatureForm( table, feats[0] )
+    form = QgsUtils.iface.getFeatureForm( table, feats[0] )
     form.show()

@@ -21,22 +21,11 @@ email                : motta.luiz@gmail.com
 
 import os, shutil
 
-from PyQt4.QtCore import ( pyqtSlot, QSettings, QDir, QDate, QFile, QIODevice, QTimer )
-from PyQt4.QtGui  import (
-     QDialog, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QSpinBox, QGroupBox,
-     QCheckBox, QRadioButton, QDateEdit, QFileDialog, QMessageBox, QAction, QColor
-)
-from PyQt4.QtXml import QDomDocument
-
+from PyQt4 import QtCore, QtGui, QtXml 
 import qgis
-from qgis.core import ( 
-     QGis, QgsMapLayer, QgsRectangle, QgsGeometry, QgsFeatureRequest,
-     QgsCoordinateReferenceSystem, QgsCoordinateTransform
-)
-from qgis.gui import ( QgsRubberBand )
-from PyQt4.Qt import QCheckBox
+from qgis import core as QgsCore, gui as QgsGui, utils as QgsUtils
 
-class DialogImageSettingPL(QDialog):
+class DialogImageSettingPL(QtGui.QDialog):
 
   localSetting = "catalogpl_plugin" # ~/.config/QGIS/QGIS2.conf
 
@@ -57,7 +46,7 @@ class DialogImageSettingPL(QDialog):
                 total_size += os.path.getsize(fp) / 1024.0 # KB
           return total_size/1024.0   # in MB
 
-        w = self.findChild( QRadioButton, self.data['current_asset'] )
+        w = self.findChild( QtGui.QRadioButton, self.data['current_asset'] )
         w.setChecked(True)
         checkUdm.setChecked( self.data['udm'] )
         buttonPath.setText( self.data['path'] )
@@ -82,16 +71,16 @@ class DialogImageSettingPL(QDialog):
         spinDay.valueChanged.connect( self.onValueChanged )
 
       def createCheckBox(text, objName, group, layout=None):
-        widget = QCheckBox( text, group )
+        widget = QtGui.QCheckBox( text, group )
         widget.setObjectName( objName )
         if not layout is None:
           layout.addWidget( widget )
         return widget
 
       def createDateEdit(labelName, objName, group, layout):
-        label = QLabel( labelName, group )
+        label = QtGui.QLabel( labelName, group )
         layout.addWidget( label )
-        widget = QDateEdit( group )
+        widget = QtGui.QDateEdit( group )
         widget.setObjectName( objName )
         widget.setCalendarPopup( True )
         format = widget.displayFormat().replace('yy', 'yyyy')
@@ -100,7 +89,7 @@ class DialogImageSettingPL(QDialog):
         return widget
 
       def createRadioButton(text, objName, group, layout=None):
-        widget = QRadioButton( text, group )
+        widget = QtGui.QRadioButton( text, group )
         widget.setObjectName( objName )
         if not layout is None:
           layout.addWidget( widget )
@@ -109,41 +98,41 @@ class DialogImageSettingPL(QDialog):
       self.setWindowTitle( windowTitle )
       self.setWindowIcon( icon )
 
-      grpImage = QGroupBox('Images', self )
+      grpImage = QtGui.QGroupBox('Images', self )
       # https://www.planet.com/docs/reference/data-api/items-assets/#item-type
-      lytAssets = QHBoxLayout()
+      lytAssets = QtGui.QHBoxLayout()
       for name in self.nameAssets:
         createRadioButton( name.capitalize(), name, grpImage, lytAssets )
 
       checkUdm = createCheckBox( 'Save UDM(Unusable Data Mask)', 'udm', grpImage )
 
-      buttonPath = QPushButton( self.titleSelectDirectory, grpImage )
+      buttonPath = QtGui.QPushButton( self.titleSelectDirectory, grpImage )
       buttonPath.setObjectName('path')
 
-      buttonClearCache = QPushButton( self.titleClearCache.format(0), grpImage )
+      buttonClearCache = QtGui.QPushButton( self.titleClearCache.format(0), grpImage )
       buttonClearCache.setObjectName('clear_cache')
       buttonClearCache.setEnabled(False)
 
-      lytImage = QVBoxLayout( grpImage )
+      lytImage = QtGui.QVBoxLayout( grpImage )
       lytImage.addLayout( lytAssets )
       lytImage.addWidget( checkUdm )
       lytImage.addWidget( buttonPath )
       lytImage.addWidget( buttonClearCache )
 
-      grpDateSearch = QGroupBox('Dates for search', self )
-      lytDate = QHBoxLayout( grpDateSearch )
+      grpDateSearch = QtGui.QGroupBox('Dates for search', self )
+      lytDate = QtGui.QHBoxLayout( grpDateSearch )
       date1 = createDateEdit('From', 'deDate1', grpDateSearch, lytDate )
       date2 = createDateEdit('To', 'deDate2', grpDateSearch, lytDate )
-      spinDay = QSpinBox( grpDateSearch )
+      spinDay = QtGui.QSpinBox( grpDateSearch )
       spinDay.setObjectName('sbDay')
       spinDay.setSingleStep( 1 )
       spinDay.setSuffix(' Days')
       spinDay.setRange( 1, 1000*360 )
       lytDate.addWidget( spinDay )
 
-      buttonOK = QPushButton('OK', self )
+      buttonOK = QtGui.QPushButton('OK', self )
 
-      layout = QVBoxLayout( self )
+      layout = QtGui.QVBoxLayout( self )
       layout.addWidget( grpImage )
       layout.addWidget( grpDateSearch )
       layout.addWidget( buttonOK )
@@ -153,9 +142,9 @@ class DialogImageSettingPL(QDialog):
       if not self.data is None:
         setData()
       else:
-        w = self.findChild( QRadioButton, 'planet' )
+        w = self.findChild( QtGui.QRadioButton, 'planet' )
         w.setChecked( True )
-        d2 = QDate.currentDate()
+        d2 = QtCore.QDate.currentDate()
         d1 = d2.addMonths( -1 )
         date1.setDate( d1 )
         date2.setDate( d2 )
@@ -184,18 +173,18 @@ class DialogImageSettingPL(QDialog):
     values = {}
     for k in keys:
       values[ k ] = "{0}/{1}".format( DialogImageSettingPL.localSetting, k )
-    s = QSettings()
+    s = QtCore.QSettings()
     for k in values.keys():
       s.setValue( values[ k ], self.data[ k ] )
 
   def _setSpinDay(self,  date1, date2 ):
-    spinDay = self.findChild( QSpinBox, "sbDay" )
+    spinDay = self.findChild( QtGui.QSpinBox, "sbDay" )
     spinDay.valueChanged.disconnect( self.onValueChanged )
     spinDay.setValue( date1.daysTo( date2) )
     spinDay.valueChanged.connect( self.onValueChanged )
 
   def _getDirsCacheTMS(self):
-    w = self.findChild( QPushButton, 'path' )
+    w = self.findChild( QtGui.QPushButton, 'path' )
     tmsDir = os.path.join( w.text(), 'tms' )
     if not os.path.isdir( tmsDir ):
       return []
@@ -213,7 +202,7 @@ class DialogImageSettingPL(QDialog):
     for k in keys:
       values[ k ] = "{0}/{1}".format( DialogImageSettingPL.localSetting, k )
     data = None
-    s = QSettings()
+    s = QtCore.QSettings()
     path = s.value( values['path'], None )
     if not path is None:
       # Next step add all informations
@@ -222,10 +211,10 @@ class DialogImageSettingPL(QDialog):
       # rapideye = s.value( values['rapideye'], None )
       # rapideye = True if rapideye == "true" else False
       # ...
-      # if QDir( path ).exists():
+      # if QtCore.QDir( path ).exists():
       #   data = { 'isOk': True, 'path': path, 'planet': planet, 'rapideye': rapideye,... }
 
-      if QDir( path ).exists():
+      if QtCore.QDir( path ).exists():
         data = { 'isOk': True, 'path': path }
       else:
         data = { 'isOk': False, 'has_path': True, 'path': path }
@@ -235,23 +224,23 @@ class DialogImageSettingPL(QDialog):
 
     return data
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def onOK(self):
     def getCurrentNameAsset():
       for name in self.nameAssets:
-        w = self.findChild( QRadioButton, name )
+        w = self.findChild( QtGui.QRadioButton, name )
         if w.isChecked():
           return name
 
-    pb = self.findChild( QPushButton, 'path' )
+    pb = self.findChild( QtGui.QPushButton, 'path' )
     path = pb.text()
     if path == self.titleSelectDirectory:
       msg = "Directory '{0}'not found".format( self.titleSelectDirectory )
-      QMessageBox.information( self, "Missing directory for download", msg )
+      QtGui.QMessageBox.information( self, "Missing directory for download", msg )
       return
-    udm = self.findChild( QCheckBox, 'udm' )
-    date1 = self.findChild( QDateEdit, "deDate1" )
-    date2 = self.findChild( QDateEdit, "deDate2" )
+    udm = self.findChild( QtGui.QCheckBox, 'udm' )
+    date1 = self.findChild( QtGui.QDateEdit, "deDate1" )
+    date2 = self.findChild( QtGui.QDateEdit, "deDate2" )
     self.data = {
         'path': path,
         'current_asset': getCurrentNameAsset(),
@@ -263,43 +252,43 @@ class DialogImageSettingPL(QDialog):
     self.data['isOk'] = True
     self.accept()
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def onPath(self):
-    w = self.findChild( QPushButton, 'path' )
+    w = self.findChild( QtGui.QPushButton, 'path' )
     path = w.text()
     if path == self.titleSelectDirectory:
       path = None
-    sdir = QFileDialog.getExistingDirectory(self, self.titleSelectDirectory, path )
+    sdir = QtGui.QFileDialog.getExistingDirectory(self, self.titleSelectDirectory, path )
     if len(sdir) > 0:
       w.setText( sdir )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def onClearCache(self):
     dirs = self._getDirsCacheTMS()
     if not len( dirs ) == 0:
       for d in dirs:
         shutil.rmtree(d)
     title = self.titleClearCache.format(0)
-    w = self.findChild( QPushButton, 'clear_cache' )
+    w = self.findChild( QtGui.QPushButton, 'clear_cache' )
     w.setText( title )
     w.setEnabled(False)
 
-  @pyqtSlot( 'QDate' )
+  @QtCore.pyqtSlot(QtCore.QDate)
   def onDateChanged1(self, date ):
-    date2 = self.findChild( QDateEdit, "deDate2" )
+    date2 = self.findChild( QtGui.QDateEdit, "deDate2" )
     date2.setMinimumDate( date.addDays( +1 ) )
     self._setSpinDay( date, date2.date() )
 
-  @pyqtSlot( 'QDate' )
+  @QtCore.pyqtSlot(QtCore.QDate)
   def onDateChanged2(self, date ):
-    date1 = self.findChild( QDateEdit, "deDate1" )
+    date1 = self.findChild( QtGui.QDateEdit, "deDate1" )
     date1.setMaximumDate( date.addDays( -1 ) )
     self._setSpinDay( date1.date(), date )
 
-  @pyqtSlot( int )
+  @QtCore.pyqtSlot( int )
   def onValueChanged(self, days ):
-    date1 = self.findChild( QDateEdit, "deDate1" )
-    date2 = self.findChild( QDateEdit, "deDate2" )
+    date1 = self.findChild( QtGui.QDateEdit, "deDate1" )
+    date2 = self.findChild( QtGui.QDateEdit, "deDate2" )
     newDate = date2.date().addDays( -1 * days )
     date1.dateChanged.disconnect( self.onDateChanged1 )
     date1.setDate( newDate )
@@ -309,7 +298,7 @@ class DialogImageSettingPL(QDialog):
 class LegendCatalogLayer():
   def __init__(self, labelMenu, slots, getTotalAssets):
     self.labelMenu, self.slots, self.getTotalAssets = labelMenu, slots, getTotalAssets
-    self.legendInterface = qgis.utils.iface.legendInterface()
+    self.legendInterface = QgsUtils.iface.legendInterface()
     self.legendMenuIDs = {
       'clear_key': 'idKey',
       'clipboard_key': 'idClipboardKey',
@@ -426,10 +415,10 @@ class LegendCatalogLayer():
       )
       for item in self.legendLayer:
         if item['id'] == 'idSeparator':
-          item['action'] = QAction(None)
+          item['action'] = QtGui.QAction(None)
           item['action'].setSeparator(True)
         else:
-          item['action'] = QAction( item['menu'], self.legendInterface )
+          item['action'] = QtGui.QAction( item['menu'], self.legendInterface )
           item['action'].triggered.connect( item['slot'] )
           if item['id'] in idsTotal:
             lblAction = "{0}({1})".format( item['menu'], prefixs['total'] )
@@ -442,7 +431,7 @@ class LegendCatalogLayer():
             lblAction = "{0}({1})".format( item['menu'], prefixs['assets'] )
             item['action'].setText( lblAction )
             item['action'].setEnabled( False )
-        arg = ( item['action'], self.labelMenu, item['id'], QgsMapLayer.VectorLayer, False )
+        arg = ( item['action'], self.labelMenu, item['id'], QgsCore.QgsMapLayer.VectorLayer, False )
         self.legendInterface.addLegendLayerAction( *arg )
         self.legendInterface.addLegendLayerActionForLayer( item['action'], self.layer )
 
@@ -502,7 +491,7 @@ class LegendCatalogLayer():
         item['action'].setEnabled( enabled )
         break
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def selectionChanged(self):
     totalAssets = self.getTotalAssets()
     enable = not ( totalAssets['analytic']['images'] + totalAssets['udm']['images'] == 0 )

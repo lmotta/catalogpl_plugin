@@ -21,17 +21,8 @@ email                : motta.luiz@gmail.com
 
 import os, json
 
-from PyQt4.QtCore import ( Qt, QObject, QDate, QDateTime, QFile, QDir, QIODevice, pyqtSignal,
-                           pyqtSlot, QEventLoop, QThread, QRect )
-from PyQt4.QtGui  import ( QApplication, QDialog, QMessageBox, QLabel, QToolButton,
-                           QColor, QProgressBar )
-
-import qgis
-from qgis.core import ( QgsApplication, QgsProject, QgsMapLayerRegistry,
-                        QgsVectorLayer, QgsRasterLayer, QgsFeature, QgsGeometry, QgsPoint,
-                        QgsCoordinateTransform, QgsCoordinateReferenceSystem,
-                        QgsMessageLog, QgsDataSourceURI )
-from qgis.gui  import ( QgsMessageBar, QgsRubberBand )
+from PyQt4 import QtCore, QtGui
+from qgis import core as QgsCore, gui as QgsGui, utils as QgsUtils
 
 from apiqtpl import API_PlanetLabs
 from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
@@ -39,18 +30,18 @@ from legendlayer import LegendRasterGeom
 
 from managerloginkey import ManagerLoginKey
 
-class MessageBarCancelProgressDownload(QObject):
+class MessageBarCancelProgressDownload(QtCore.QObject):
 
   def __init__(self, msgBar, msg, maximum, funcKill, hasProgressFile=False):
     def initGui():
-      self.pb = QProgressBar( self.msgBar )
-      self.pb.setAlignment( Qt.AlignLeft )
-      self.lb = QLabel( self.msgBar )
-      self.tbCancel = QToolButton( self.msgBar )
-      self.tbCancel.setIcon( QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
+      self.pb = QtGui.QProgressBar( self.msgBar )
+      self.pb.setAlignment( QtCore.Qt.AlignLeft )
+      self.lb = QtGui.QLabel( self.msgBar )
+      self.tbCancel = QtGui.QToolButton( self.msgBar )
+      self.tbCancel.setIcon( QgsCore.QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
       self.tbCancel.setToolTip( "Cancel download")
       self.tbCancel.setText( "Cancel")
-      self.tbCancel.setToolButtonStyle( Qt.ToolButtonTextBesideIcon )
+      self.tbCancel.setToolButtonStyle( QtCore.Qt.ToolButtonTextBesideIcon )
       self.widget = self.msgBar.createMessage( CatalogPL.pluginName, msg )
 
       widgets = [ self.tbCancel, self.lb, self.pb ]
@@ -60,8 +51,8 @@ class MessageBarCancelProgressDownload(QObject):
       del widgets[:]
 
       if hasProgressFile:
-        self.pbFile = QProgressBar( self.msgBar )
-        self.pbFile.setAlignment( Qt.AlignLeft )
+        self.pbFile = QtGui.QProgressBar( self.msgBar )
+        self.pbFile.setAlignment( QtCore.Qt.AlignLeft )
         self.pbFile.setValue( 1 )
         lyt.addWidget( self.pbFile )
 
@@ -72,7 +63,7 @@ class MessageBarCancelProgressDownload(QObject):
     self.tbCancel.clicked.connect( self.clickedCancel )
     self.pb.destroyed.connect( self.destroyed)
 
-    self.msgBar.pushWidget( self.widget, QgsMessageBar.INFO )
+    self.msgBar.pushWidget( self.widget, QgsGui.QgsMessageBar.INFO )
     self.pb.setValue( 1 )
     self.pb.setMaximum( maximum )
     self.isCancel = False
@@ -88,18 +79,18 @@ class MessageBarCancelProgressDownload(QObject):
       self.pbFile.setToolTip( image )
       self.pbFile.setFormat( "%p% " + os.path.split( image )[-1] )
 
-  @pyqtSlot( 'QObject' )
+  @QtCore.pyqtSlot(QtCore.QObject)
   def destroyed(self, obj):
     self.pb = None
 
-  @pyqtSlot(bool)
+  @QtCore.pyqtSlot(bool)
   def clickedCancel(self, checked):
     if self.pb is None:
       return
     self.kill()
     self.isCancel = True
 
-  @pyqtSlot(int, int)
+  @QtCore.pyqtSlot(int, int)
   def stepFile(self, bytesReceived, bytesTotal):
     if self.pb is None:
       return
@@ -107,14 +98,14 @@ class MessageBarCancelProgressDownload(QObject):
     self.pbFile.setMaximum( bytesTotal )
     self.pbFile.setValue( bytesReceived )
 
-class MessageBarCancel(QObject):
+class MessageBarCancel(QtCore.QObject):
 
   def __init__(self, msgBar, msg, funcKill):
     def initGui():
-      self.tbCancel = QToolButton( msgBar )
-      self.tbCancel.setIcon( QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
+      self.tbCancel = QtGui.QToolButton( msgBar )
+      self.tbCancel.setIcon( QgsCore.QgsApplication.getThemeIcon( "/mActionCancelAllEdits.svg" ) )
       self.tbCancel.setText( "Cancel")
-      self.tbCancel.setToolButtonStyle( Qt.ToolButtonTextBesideIcon )
+      self.tbCancel.setToolButtonStyle( QtCore.Qt.ToolButtonTextBesideIcon )
       self.widget = msgBar.createMessage( CatalogPL.pluginName, msg )
 
       lyt = self.widget.layout()
@@ -125,7 +116,7 @@ class MessageBarCancel(QObject):
     initGui()
     self.tbCancel.clicked.connect( self.clickedCancel )
 
-    msgBar.pushWidget( self.widget, QgsMessageBar.INFO )
+    msgBar.pushWidget( self.widget, QgsGui.QgsMessageBar.INFO )
     self.isCancel = False
     self.kill = funcKill
 
@@ -133,14 +124,14 @@ class MessageBarCancel(QObject):
     if not self.isCancel:
       self.widget.setText( msg )
 
-  @pyqtSlot(bool)
+  @QtCore.pyqtSlot(bool)
   def clickedCancel(self, checked):
     self.kill()
     self.isCancel = True
 
-class WorkerCreateTMS_GDAL_WMS(QObject):
-  finished = pyqtSignal( dict )
-  stepProgress = pyqtSignal( int )
+class WorkerCreateTMS_GDAL_WMS(QtCore.QObject):
+  finished = QtCore.pyqtSignal( dict )
+  stepProgress = QtCore.pyqtSignal( int )
 
   def __init__(self, logMessage, legendRasterGeom ):
     super(WorkerCreateTMS_GDAL_WMS, self).__init__()
@@ -157,7 +148,7 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
    self.ltgRoot = ltgRoot
    self.ltgCatalog = ltgCatalog
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def run(self):
     def saveTMS(feat, fileDownload):
       def contenTargetWindow():
@@ -217,19 +208,19 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
 
     def addTMS():
       if not image in sources_catalog_group:
-        geomTransf = QgsGeometry(feat.geometry() )
+        geomTransf = QgsCore.QgsGeometry(feat.geometry() )
         geomTransf.transform( self.ctTMS )
         wkt_geom = geomTransf.exportToWkt()
-        layer = QgsRasterLayer( image, os.path.split( image )[-1] )
+        layer = QgsCore.QgsRasterLayer( image, os.path.split( image )[-1] )
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
         layer.setCustomProperty( 'date', feat['acquired'] )
         layer.setCustomProperty( 'id_table', self.id_table )
         layer.setCustomProperty( 'id_image', feat['id'] )
-        QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
-        self.ltgCatalog.addLayer( layer).setVisible( Qt.Unchecked )
+        QgsCore.QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
+        self.ltgCatalog.addLayer( layer).setVisible( QtCore.Qt.Unchecked )
         self.legendRasterGeom.setLayer( layer )
 
-    mlr = QgsMapLayerRegistry.instance()
+    mlr = QgsCore.QgsMapLayerRegistry.instance()
     user_pwd = API_PlanetLabs.validKey
     sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
 
@@ -245,13 +236,13 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
       ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
       if not ok:
         msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
         totalError += 1
         continue
       image = os.path.join( self.path, u"{0}_tms.xml".format( feat['id'] ) )
-      if not QFile.exists( image ):
-        fileDownload = QFile( image )
-        fileDownload.open( QIODevice.WriteOnly )
+      if not QtCore.QFile.exists( image ):
+        fileDownload = QtCore.QFile( image )
+        fileDownload.open( QtCore.QIODevice.WriteOnly )
         saveTMS( feat, fileDownload )
         fileDownload.close()
 
@@ -266,10 +257,10 @@ class WorkerCreateTMS_GDAL_WMS(QObject):
 # Check change in WorkerCreateTMS_GDAL_WMS(path,...)
 # Not Runnig!
 
-class WorkerCreateTMS_ServerXYZ(QObject):
+class WorkerCreateTMS_ServerXYZ(QtCore.QObject):
 
-  finished = pyqtSignal( dict )
-  stepProgress = pyqtSignal( int )
+  finished = QtCore.pyqtSignal( dict )
+  stepProgress = QtCore.pyqtSignal( int )
 
   def __init__(self, logMessage, legendRasterGeom ):
     super(WorkerCreateTMS_ServerXYZ, self).__init__()
@@ -280,27 +271,27 @@ class WorkerCreateTMS_ServerXYZ(QObject):
   def setting(self, iterFeat, ltgRoot, ltgCatalog):
    self.iterFeat, self.ltgRoot, self.ltgCatalog  = iterFeat, ltgRoot, ltgCatalog
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def run(self):
     def addTMS():
       server_url = API_PlanetLabs.urlTMS.format( item_type=item_type, item_id=item_id )
       urlkey = "{0}?api_key={1}".format( server_url, user_pwd )
       uri.setParam('url', urlkey )
-      lyr = QgsRasterLayer( str( uri.encodedUri() ), item_id , 'wms')
+      lyr = QgsCore.QgsRasterLayer( str( uri.encodedUri() ), item_id , 'wms')
       if not lyr.isValid():
         msg = "Error create TMS from {0}: Invalid layer".format( item_id )
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
         totalError += 1
         return
       if not lyr.source() in sources_catalog_group:
         lyr.setCustomProperty( 'wkt_geom', wkt_geom )
         mlr.addMapLayer( lyr, addToLegend=False )
-        self.ltgCatalog.addLayer( lyr ).setVisible( Qt.Unchecked )
+        self.ltgCatalog.addLayer( lyr ).setVisible( QtCore.Qt.Unchecked )
         self.legendRasterGeom.setLayer( lyr )
 
-    mlr = QgsMapLayerRegistry.instance()
+    mlr = QgsCore.QgsMapLayerRegistry.instance()
     user_pwd = API_PlanetLabs.validKey
-    uri = QgsDataSourceURI()
+    uri = QgsCore.QgsDataSourceURI()
     uri.setParam('type', 'xyz' )
     sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
 
@@ -316,7 +307,7 @@ class WorkerCreateTMS_ServerXYZ(QObject):
       ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
       if not ok:
         msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
         totalError += 1
         continue
       wkt_geom = feat.geometry().exportToWkt()
@@ -329,14 +320,14 @@ class WorkerCreateTMS_ServerXYZ(QObject):
   def kill(self):
     self.isKilled = True
 
-class CatalogPL(QObject):
+class CatalogPL(QtCore.QObject):
 
   pluginName = u'Catalog Planet Labs'
   styleFile = 'pl_scenes.qml'
   expressionFile = 'pl_expressions.py'
   expressionDir = 'expressions'
 
-  enableRun = pyqtSignal( bool )
+  enableRun = QtCore.pyqtSignal( bool )
   
   def __init__(self, icon):
     def setLegendCatalogLayer():
@@ -360,17 +351,17 @@ class CatalogPL(QObject):
       # Next step add all informations (DialogImageSettingPL.getSettings)
       self.searchSettings['current_asset'] = 'planet'
       self.searchSettings['udm'] = False
-      date2 = QDate.currentDate()
+      date2 = QtCore.QDate.currentDate()
       date1 = date2.addMonths( -1 )
       self.searchSettings['date1'] = date1 
       self.searchSettings['date2'] = date2
 
     super(CatalogPL, self).__init__()
-    self.canvas = qgis.utils.iface.mapCanvas()
-    self.msgBar = qgis.utils.iface.messageBar()
-    self.logMessage = QgsMessageLog.instance().logMessage
+    self.canvas = QgsUtils.iface.mapCanvas()
+    self.msgBar = QgsUtils.iface.messageBar()
+    self.logMessage = QgsCore.QgsMessageLog.instance().logMessage
     self.icon = icon
-    self.mainWindow = qgis.utils.iface.mainWindow()
+    self.mainWindow = QgsUtils.iface.mainWindow()
 
     self.apiPL = API_PlanetLabs()
     self.mngLogin = ManagerLoginKey('catalogpl_plugin')
@@ -400,7 +391,7 @@ class CatalogPL(QObject):
     del self.legendRasterGeom
 
   def _initThread(self):
-    self.thread = QThread( self )
+    self.thread = QtCore.QThread( self )
     self.thread.setObjectName( "QGIS_Plugin_Catalog_PlanetLabs" )
     self.worker = WorkerCreateTMS_GDAL_WMS( self.logMessage, self.legendRasterGeom )
     self.worker.moveToThread( self.thread )
@@ -415,7 +406,7 @@ class CatalogPL(QObject):
     self.thread = self.worker = None
 
   def _connect(self, isConnect = True):
-    s = { 'signal': QgsMapLayerRegistry.instance().layerWillBeRemoved, 'slot': self.layerWillBeRemoved }
+    s = { 'signal': QgsCore.QgsMapLayerRegistry.instance().layerWillBeRemoved, 'slot': self.layerWillBeRemoved }
     if isConnect:
       s['signal'].connect( s['slot'] )
     else:
@@ -436,7 +427,7 @@ class CatalogPL(QObject):
     ( iterFeat, totalFeat, hasSelected ) = getFeatureIteratorTotal()
     if totalFeat == 0:
       msg = "Not have images for processing."
-      arg = ( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 4 ) 
+      arg = ( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 4 ) 
       self.msgBar.pushMessage( *arg )
       return { 'isOk': False }
 
@@ -459,16 +450,16 @@ class CatalogPL(QObject):
     self.msgBar.popWidget()
     if not self.mbcancel.isCancel and totalError > 0:
       msg = "Has error in download (total = {0}) - See log messages".format( totalError )
-      arg = ( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 )
+      arg = ( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.CRITICAL, 4 )
       self.msgBar.pushMessage( *arg )
       return
 
     if self.mbcancel.isCancel:
       f_msg = "Canceled '{0}' by user"
-      typMessage = QgsMessageBar.WARNING
+      typMessage = QgsGui.QgsMessageBar.WARNING
     else:
       f_msg = "Finished '{0}'"
-      typMessage = QgsMessageBar.INFO
+      typMessage = QgsGui.QgsMessageBar.INFO
     
     msg = f_msg.format( nameProcessing )
     self.msgBar.clearWidgets()
@@ -542,7 +533,7 @@ class CatalogPL(QObject):
         name = "{0} [{1}]".format( key, len( groupDates[ key ] ) )
         ltg = self.ltgCatalog.insertGroup( idx, name )
         for l in groupDates[ key ]:
-          ltg.addLayer( l ).setVisible( Qt.Unchecked )
+          ltg.addLayer( l ).setVisible( QtCore.Qt.Unchecked )
         ltg.setExpanded(False)
       self.ltgCatalog.removeChildren( len( keys), len( layers) )
 
@@ -557,15 +548,15 @@ class CatalogPL(QObject):
         self.messagePL = response[ 'message' ]
       loop.quit()
 
-    loop = QEventLoop()
+    loop = QtCore.QEventLoop()
     msg = "Checking server..."
-    self.msgBar.pushMessage( self.pluginName, msg, QgsMessageBar.INFO )
+    self.msgBar.pushMessage( self.pluginName, msg, QgsGui.QgsMessageBar.INFO )
     self.enableRun.emit( False )
     self.apiPL.isHostLive( setFinished )
     loop.exec_()
     self.msgBar.popWidget()
     if not self.isOkPL:
-      self.msgBar.pushMessage( self.pluginName, self.messagePL, QgsMessageBar.CRITICAL, 4 )
+      self.msgBar.pushMessage( self.pluginName, self.messagePL, QgsGui.QgsMessageBar.CRITICAL, 4 )
       self.messagePL = None
     self.isHostLive = self.isOkPL
     self.enableRun.emit( True )
@@ -600,14 +591,14 @@ class CatalogPL(QObject):
       return
 
     msg = "Checking register key..."
-    self.msgBar.pushMessage( self.pluginName, msg, QgsMessageBar.INFO )
-    loop = QEventLoop()
+    self.msgBar.pushMessage( self.pluginName, msg, QgsGui.QgsMessageBar.INFO )
+    loop = QtCore.QEventLoop()
     self.apiPL.setKey( key, setFinished )
     loop.exec_()
     self.msgBar.popWidget()
     if not self.isOkPL :
-      msg = "Your registered Key not is valid. It will be removed in QGis setting! Please enter a new key."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 4 ) 
+      msg = "Your registered Key not is valid. It will be removed in QgsCore.QGis setting! Please enter a new key."
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.CRITICAL, 4 ) 
       self.mngLogin.removeKey()
     self.hasRegisterKey = self.isOkPL
     self.enableRun.emit( True )
@@ -623,12 +614,12 @@ class CatalogPL(QObject):
       l_fields.insert( 0, "Multipolygon?crs=epsg:4326" )
       l_fields.append( "index=yes" )
       uri = '&'.join( l_fields )
-      vl = QgsVectorLayer( uri, "pl_scenes", "memory" )
-      self.layer = QgsMapLayerRegistry.instance().addMapLayer( vl, addToLegend=False )
-      ltgRoot = QgsProject.instance().layerTreeRoot()
+      vl = QgsCore.QgsVectorLayer( uri, "pl_scenes", "memory" )
+      self.layer = QgsCore.QgsMapLayerRegistry.instance().addMapLayer( vl, addToLegend=False )
+      ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
       self.layerTree = ltgRoot.insertLayer(0, self.layer )
       self.layer.loadNamedStyle( os.path.join( os.path.dirname( __file__ ), CatalogPL.styleFile ) )
-      qgis.utils.iface.legendInterface().refreshLayerSymbology( self.layer )
+      QgsUtils.iface.legendInterface().refreshLayerSymbology( self.layer )
 
     def removeFeatures():
       prov = self.layer.dataProvider()
@@ -650,13 +641,13 @@ class CatalogPL(QObject):
 
           loop.quit()
 
-        loop = QEventLoop()
+        loop = QtCore.QEventLoop()
         self.apiPL.getUrlScenes( json_request, setFinishedPL )
         loop.exec_()
         if not self.isOkPL: 
           self.hasCriticalMessage = True
           self.msgBar.popWidget()
-          self.msgBar.pushMessage( CatalogPL.pluginName, self.messagePL, QgsMessageBar.CRITICAL, 4 )
+          self.msgBar.pushMessage( CatalogPL.pluginName, self.messagePL, QgsGui.QgsMessageBar.CRITICAL, 4 )
           self.messagePL = None
           self.total_features_scenes = None
 
@@ -694,17 +685,17 @@ class CatalogPL(QObject):
               geomItem = item['geometry']
               geomCoords = geomItem['coordinates']
               if geomItem['type'] == 'Polygon':
-                qpolygon = map ( lambda polyline: map( lambda item: QgsPoint( item[0], item[1] ), polyline ), geomCoords )
-                geom = QgsGeometry.fromMultiPolygon( [ qpolygon ] )
+                qpolygon = map ( lambda polyline: map( lambda item: QgsCore.QgsPoint( item[0], item[1] ), polyline ), geomCoords )
+                geom = QgsCore.QgsGeometry.fromMultiPolygon( [ qpolygon ] )
               elif geomItem['type'] == 'MultiPolygon':
                 qmultipolygon = []
                 for polygon in geomCoords:
-                    qpolygon = map ( lambda polyline: map( lambda item: QgsPoint( item[0], item[1] ), polyline ), polygon )
+                    qpolygon = map ( lambda polyline: map( lambda item: QgsCore.QgsPoint( item[0], item[1] ), polyline ), polygon )
                     qmultipolygon.append( qpolygon )
-                geom = QgsGeometry.fromMultiPolygon( qmultipolygon )
+                geom = QgsCore.QgsGeometry.fromMultiPolygon( qmultipolygon )
               else:
                 continue
-              feat = QgsFeature()
+              feat = QgsCore.QgsFeature()
               feat.setGeometry( geom )
 
               atts = map( lambda item: vFields[ item ], fields )
@@ -731,12 +722,12 @@ class CatalogPL(QObject):
           else:
             self.hasCriticalMessage = True
             self.msgBar.popWidget()
-            self.msgBar.pushMessage( CatalogPL.pluginName, self.messagePL, QgsMessageBar.CRITICAL, 4 )
+            self.msgBar.pushMessage( CatalogPL.pluginName, self.messagePL, QgsGui.QgsMessageBar.CRITICAL, 4 )
             self.messagePL = None
             self.url_scenes = None
             self.scenes = []
 
-        loop = QEventLoop()
+        loop = QtCore.QEventLoop()
         self.apiPL.getScenes( self.url_scenes,  setFinishedPL )
         loop.exec_()
         setScenesResponse()
@@ -747,12 +738,12 @@ class CatalogPL(QObject):
           # Adaption from "https://github.com/sourcepole/qgis-instantprint-plugin/blob/master/InstantPrintTool.py" 
           mtp  = self.canvas.mapSettings().mapToPixel()
           rect = self.canvas.extent().toRectF()
-          p1 = mtp.transform( QgsPoint( rect.left(), rect.top() ) )
-          p2 = mtp.transform( QgsPoint( rect.right(), rect.bottom() ) )
-          return QRect( p1.x(), p1.y(), p2.x() - p1.x(), p2.y() - p1.y() )
+          p1 = mtp.transform( QgsCore.QgsPoint( rect.left(), rect.top() ) )
+          p2 = mtp.transform( QgsCore.QgsPoint( rect.right(), rect.bottom() ) )
+          return QtCore.QRect( p1.x(), p1.y(), p2.x() - p1.x(), p2.y() - p1.y() )
 
-        rb = QgsRubberBand( self.canvas, False )
-        rb.setBorderColor( QColor( 0, 255 , 255 ) )
+        rb = QgsGui.QgsRubberBand( self.canvas, False )
+        rb.setBorderColor( QtGui.QColor( 0, 255 , 255 ) )
         rb.setWidth( 2 )
         rb.setToCanvasRectangle( canvasRect() )
         return rb
@@ -760,9 +751,9 @@ class CatalogPL(QObject):
       def extentFilter():
         crsCanvas = self.canvas.mapSettings().destinationCrs()
         crsLayer = self.layer.crs()
-        ct = QgsCoordinateTransform( crsCanvas, crsLayer )
+        ct = QgsCore.QgsCoordinateTransform( crsCanvas, crsLayer )
         extent = self.canvas.extent() if crsCanvas == crsLayer else ct.transform( self.canvas.extent() )
-        return json.loads( QgsGeometry.fromRect( extent ).exportToGeoJSON() )
+        return json.loads( QgsCore.QgsGeometry.fromRect( extent ).exportToGeoJSON() )
 
       def get_item_types():
         # Same list of DialogImageSettingPL.nameAssets
@@ -784,24 +775,24 @@ class CatalogPL(QObject):
         self.layerTree.setCustomProperty ('showFeatureCount', True )
         
         msg = "Finished the search of images. Found %d images" % self.total_features_scenes
-        typeMessage = QgsMessageBar.INFO
+        typeMessage = QgsGui.QgsMessageBar.INFO
         if self.mbcancel.isCancel:
           self.msgBar.popWidget()
           removeFeatures()
-          typeMessage = QgsMessageBar.WARNING
+          typeMessage = QgsGui.QgsMessageBar.WARNING
           msg = "Canceled the search of images. Removed %d features" % self.total_features_scenes
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, typeMessage, 4 )
 
       date1 = self.searchSettings['date1']
       date2 = self.searchSettings['date2']
       days = date1.daysTo( date2)
-      date1, date2 = date1.toString( Qt.ISODate ), date2.toString( Qt.ISODate )
+      date1, date2 = date1.toString( QtCore.Qt.ISODate ), date2.toString( QtCore.Qt.ISODate )
       sdate1 = "{0}T00:00:00.000000Z".format( date1 )
       sdate2 = "{0}T00:00:00.000000Z".format( date2 )
 
       self.msgBar.clearWidgets()
       msg = "Starting the search of images - %s(%d days)..." % ( date2, days ) 
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.INFO )
       rb = createRubberBand() # Show Rectangle of Query (coordinate in pixel)
       # JSon request
       geometry_filter = {
@@ -832,7 +823,7 @@ class CatalogPL(QObject):
         self.canvas.scene().removeItem( rb )
         msg = "Not found images"
         self.msgBar.popWidget()
-        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 2 )
+        self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 2 )
         return
 
       self.msgBar.popWidget()
@@ -860,16 +851,16 @@ class CatalogPL(QObject):
       else:
         msg = "The directory '{0}' not found, please setting directory in Planet Labs Catalog layer"
         msg = msg.format( self.searchSettings['path'] )
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.WARNING, 6 )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 6 )
       return False
 
     self.enableRun.emit( False )
 
     # Setting Layer
     if not self.layer is None:
-      QgsMapLayerRegistry.instance().removeMapLayer( self.layer.id() )
+      QgsCore.QgsMapLayerRegistry.instance().removeMapLayer( self.layer.id() )
     createLayer()
-    self.layerTree.setVisible(Qt.Unchecked)
+    self.layerTree.setVisible(QtCore.Qt.Unchecked)
 
     if not checkLayerLegend():
       self.legendCatalogLayer.setLayer( self.layer )
@@ -877,7 +868,7 @@ class CatalogPL(QObject):
       return
 
     self.hasCriticalMessage = False
-    populateLayer() # addFeatures().commitFeatures() -> QEventLoop()
+    populateLayer() # addFeatures().commitFeatures() -> QtCore.QEventLoop()
     self.legendCatalogLayer.setLayer( self.layer )
     self.enableRun.emit( True )
 
@@ -899,7 +890,7 @@ class CatalogPL(QObject):
 
     return totalAssets 
 
-  @pyqtSlot(str)
+  @QtCore.pyqtSlot(str)
   def layerWillBeRemoved(self, id):
     if not self.layerTree is None and id == self.layer.id():
       self.apiPL.kill()
@@ -907,52 +898,52 @@ class CatalogPL(QObject):
       self.legendCatalogLayer.clean()
       self.layerTree = self.layer = None
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def clearKey(self):
     def dialogQuestion():
       title = "Planet Labs"
       msg = "Are you sure want clear the register key?"
-      msgBox = QMessageBox( QMessageBox.Question, title, msg, QMessageBox.Yes | QMessageBox.No,  self.mainWindow )
-      msgBox.setDefaultButton( QMessageBox.No )
+      msgBox = QtGui.QMessageBox( QtGui.QMessageBox.Question, title, msg, QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,  self.mainWindow )
+      msgBox.setDefaultButton( QtGui.QMessageBox.No )
       return msgBox.exec_()
 
     if self.mngLogin.getKeySetting() is None:
       msg = "Already cleared the register key. Next run QGIS will need enter the key."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO, 4 )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.INFO, 4 )
       self.legendCatalogLayer.enabledClearKey( False )
       return
     
-    if QMessageBox.Yes == dialogQuestion():
+    if QtGui.QMessageBox.Yes == dialogQuestion():
       self.mngLogin.removeKey()
       msg = "Cleared the register key. Next run QGIS will need enter the key."
-      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.INFO, 4 )
+      self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.INFO, 4 )
       self.legendCatalogLayer.enabledClearKey( False )
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def clipboardKey(self):
-    cb = QApplication.clipboard()
+    cb = QtGui.QApplication.clipboard()
     key = self.mngLogin.getKeySetting()
     if key is None:
       key = "Don't have key registered"
     cb.setText( key, mode=cb.Clipboard )    
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def settingImages(self):
     settings = self.searchSettings if self.searchSettings['isOk'] else None 
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
-    if dlg.exec_() == QDialog.Accepted:
+    if dlg.exec_() == QtGui.QDialog.Accepted:
       self.searchSettings = dlg.getData()
       self.legendCatalogLayer.enabledProcessing()
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def createTMS_ServerXYZ(self):
-    @pyqtSlot( dict )
+    @QtCore.pyqtSlot( dict )
     def finished( message ):
       self.thread.quit()
       self.worker.finished.disconnect( finished )
       self._endProcessing( "Create TMS", message['totalError'] )
 
-    ltgRoot = QgsProject.instance().layerTreeRoot()
+    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog( ltgRoot, 'TMS' )
 
     r = self._startProcess( self.worker.kill )
@@ -970,9 +961,9 @@ class CatalogPL(QObject):
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def calculateAssetStatus(self):
-    @pyqtSlot( dict )
+    @QtCore.pyqtSlot( dict )
     def finished( response ):
       if self.mbcancel.isCancel:
         self.messagePL = None
@@ -994,7 +985,7 @@ class CatalogPL(QObject):
       'analytic': { 'images': 0, 'activate': 0 },
       'udm':      { 'images': 0, 'activate': 0 }
     }
-    loop = QEventLoop()
+    loop = QtCore.QEventLoop()
     step = totalError = 0
     for feat in iterFeat:  
       step += 1
@@ -1032,7 +1023,7 @@ class CatalogPL(QObject):
 
   ## Its is for API V0! Not update
   
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def activateAssets(self):
     def activeAsset(asset, activate, dataLocal):
       def setFinished( response ):
@@ -1044,7 +1035,7 @@ class CatalogPL(QObject):
           else:
             arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
             msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
-          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+          self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
           self.currentItem = None
           self.isOkPL = False
         loop.quit()
@@ -1063,7 +1054,7 @@ class CatalogPL(QObject):
       return True # Not cancel by user
     
     #msg = "Sorry! I am working this feature for API Planet V1"
-    #self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsMessageBar.CRITICAL, 8 )
+    #self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.CRITICAL, 8 )
     #return
     r = self._startProcess( self.apiPL.kill )
     if not r['isOk']:
@@ -1071,7 +1062,7 @@ class CatalogPL(QObject):
     iterFeat = r['iterFeat']
 
     dataLocal = { 'totalError': 0, 'step': 0 }
-    loop = QEventLoop()
+    loop = QtCore.QEventLoop()
     for feat in iterFeat:
       dataLocal['step'] += 1
       meta_json = json.loads( feat['meta_json'] )
@@ -1091,16 +1082,16 @@ class CatalogPL(QObject):
 
     self._endProcessing( "Activate assets", dataLocal['totalError'] ) 
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def CreateTMS_GDAL_WMS(self):
-    @pyqtSlot( dict )
+    @QtCore.pyqtSlot( dict )
     def finished( message ):
       self.thread.quit()
       self.worker.finished.disconnect( finished )
       self._sortGroupCatalog()
       self._endProcessing( "Create TMS", message['totalError'] )
 
-    ltgRoot = QgsProject.instance().layerTreeRoot()
+    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog( ltgRoot, 'TMS' )
 
     r = self._startProcess( self.worker.kill )
@@ -1111,8 +1102,8 @@ class CatalogPL(QObject):
     path_tms = os.path.join( self.searchSettings['path'], 'tms')
     if not os.path.exists( path_tms ):
       os.makedirs( path_tms )
-    cr3857 = QgsCoordinateReferenceSystem( 3857, QgsCoordinateReferenceSystem.EpsgCrsId )
-    ctTMS = QgsCoordinateTransform( self.layer.crs(), cr3857 )
+    cr3857 = QgsCore.QgsCoordinateReferenceSystem( 3857, QgsCore.QgsCoordinateReferenceSystem.EpsgCrsId )
+    ctTMS = QgsCore.QgsCoordinateTransform( self.layer.crs(), cr3857 )
 
     self.worker.finished.connect( finished )
     arg = ( self.layer.id(), path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
@@ -1122,7 +1113,7 @@ class CatalogPL(QObject):
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def downloadThumbnails(self):
     def setFinished( response ):
       if response[ 'isOk' ]:
@@ -1130,7 +1121,7 @@ class CatalogPL(QObject):
       else:
         arg = ( self.currentItem, response['message'], response['errorCode'] )
         msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
-        self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
         self.currentItem = None
         self.pixmap = None
       loop.quit()
@@ -1160,7 +1151,7 @@ class CatalogPL(QObject):
     isEditable = self.layer.isEditable()
     if not isEditable:
       self.layer.startEditing()
-    loop = QEventLoop()
+    loop = QtCore.QEventLoop()
     for feat in iterFeat:
       step += 1
       self.mbcancel.step( step )
@@ -1170,7 +1161,7 @@ class CatalogPL(QObject):
         break
       arg = ( path_thumbnail, u"{0}_thumbnail.png".format( feat['id'] ) )
       file_thumbnail = os.path.join( *arg )
-      if not QFile.exists( file_thumbnail ):
+      if not QtCore.QFile.exists( file_thumbnail ):
         createThumbnails()
         loop.exec_()
         if not self.pixmap is None:
@@ -1194,7 +1185,7 @@ class CatalogPL(QObject):
 
     self._endProcessing( "Download Thumbnails", totalError ) 
 
-  @pyqtSlot()
+  @QtCore.pyqtSlot()
   def downloadImages(self):
     def createImage(suffix, location, id_table, geom, v_crs, acquired, id_image, dataLocal, add_image=False):
       def setFinished( response ):
@@ -1208,7 +1199,7 @@ class CatalogPL(QObject):
           else:
             arg = ( self.currentItem, response['message'], response[ 'errorCode' ] )
             msg = "Error request for {0}: {1} (Code = {2})".format( *arg )
-          self.logMessage( msg, CatalogPL.pluginName, QgsMessageLog.CRITICAL )
+          self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
           self.currentItem = None
           self.isOkPL = False
           self.totalReady = None
@@ -1222,16 +1213,16 @@ class CatalogPL(QObject):
         loop.quit()
 
       def addImage():
-        layer = QgsRasterLayer( file_image, os.path.split( file_image )[-1] )
-        geomTransf = QgsGeometry( geom )
-        ct = QgsCoordinateTransform( v_crs, layer.crs() )
+        layer = QgsCore.QgsRasterLayer( file_image, os.path.split( file_image )[-1] )
+        geomTransf = QgsCore.QgsGeometry( geom )
+        ct = QgsCore.QgsCoordinateTransform( v_crs, layer.crs() )
         geomTransf.transform( ct )
         wkt_geom = geomTransf.exportToWkt()
         layer.setCustomProperty( 'wkt_geom', wkt_geom )
         layer.setCustomProperty( 'date', acquired )
         layer.setCustomProperty( 'id_table', id_table )
         layer.setCustomProperty( 'id_image', id_image )
-        QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
+        QgsCore.QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
         self.ltgCatalog.addLayer( layer )
         self.legendRasterGeom.setLayer( layer )
       
@@ -1243,10 +1234,10 @@ class CatalogPL(QObject):
         iterFeat.close()
         return False
       self.isOkPL = True
-      if not QFile.exists( file_image ):
+      if not QtCore.QFile.exists( file_image ):
         self.currentItem = "'{0}({1})'".format( feat['id'], suffix )
-        self.imageDownload = QFile( "{0}.part".format( file_image ) )
-        self.imageDownload.open( QIODevice.WriteOnly )
+        self.imageDownload = QtCore.QFile( "{0}.part".format( file_image ) )
+        self.imageDownload.open( QtCore.QIODevice.WriteOnly )
         arg = ( location, setFinished, self.imageDownload.write, self.mbcancel.stepFile )
         self.apiPL.saveImage( *arg )
         loop.exec_()
@@ -1258,7 +1249,7 @@ class CatalogPL(QObject):
           addImage()
       return True # Not cancel by user
 
-    ltgRoot = QgsProject.instance().layerTreeRoot()
+    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
     self._setGroupCatalog( ltgRoot, 'TIF' )
 
     r = self._startProcess( self.apiPL.kill, True )
@@ -1274,7 +1265,7 @@ class CatalogPL(QObject):
     id_table = self.layer.id()
     dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
     self.totalReady = None
-    loop = QEventLoop()
+    loop = QtCore.QEventLoop()
     for feat in iterFeat:
       dataLocal['step'] += 1
       meta_json = json.loads( feat['meta_json'] )
@@ -1304,6 +1295,6 @@ class CatalogPL(QObject):
     dirExp = os.path.join( dirname( dirname( dirname( __file__ ) ) ), CatalogPL.expressionDir )
     toExp = os.path.join( dirExp , CatalogPL.expressionFile )
     if os.path.isdir( dirExp ):
-      if QFile.exists( toExp ):
-        QFile.remove( toExp ) 
-      QFile.copy( fromExp, toExp ) 
+      if QtCore.QFile.exists( toExp ):
+        QtCore.QFile.remove( toExp ) 
+      QtCore.QFile.copy( fromExp, toExp ) 
