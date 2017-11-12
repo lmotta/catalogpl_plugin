@@ -300,9 +300,6 @@ class LegendCatalogLayer():
     self.labelMenu, self.slots, self.getTotalAssets = labelMenu, slots, getTotalAssets
     self.legendInterface = QgsUtils.iface.legendInterface()
     self.legendMenuIDs = {
-      'clear_key': 'idKey',
-      'clipboard_key': 'idClipboardKey',
-      'setting_images': 'idSetting',
       'calculate_status_assets': 'idCalculateStatusAssets',
       'activate_assets': 'idActivateAssets',
       'create_tms': 'idCreateTMS',
@@ -342,25 +339,9 @@ class LegendCatalogLayer():
     def addActionLegendLayer():
       self.legendLayer = [
         {
-          'menu': u"Clear key",
-          'id': self.legendMenuIDs['clear_key'],
-          'slot': self.slots['clear_key'],
-          'action': None
-        },
-        {
-          'menu': u"Copy key to Clipboard",
-          'id': self.legendMenuIDs['clipboard_key'],
-          'slot': self.slots['clipboard_key'],
-          'action': None
-        },
-        {
-          'id': 'idSeparator',
-          'action': None
-        },
-        {
-          'menu': u"Settings...",
-          'id': self.legendMenuIDs['setting_images'],
-          'slot': self.slots['setting_images'],
+          'menu': u"Create TMS",
+          'id': self.legendMenuIDs['create_tms'],
+          'slot': self.slots['create_tms'],
           'action': None
         },
         {
@@ -384,12 +365,6 @@ class LegendCatalogLayer():
           'action': None
         },
         {
-          'menu': u"Create TMS",
-          'id': self.legendMenuIDs['create_tms'],
-          'slot': self.slots['create_tms'],
-          'action': None
-        },
-        {
           'menu': u"Download images",
           'id': self.legendMenuIDs['download_images'],
           'slot': self.slots['download_images'],
@@ -402,7 +377,6 @@ class LegendCatalogLayer():
           'action': None
         }
       ]
-
       prefixs = {
         'total':  "{0} - total".format( self.layer.featureCount() ),
         'images': "0 analytic - 0 udm - total",
@@ -440,14 +414,7 @@ class LegendCatalogLayer():
     addActionLegendLayer()
 
   def enabledProcessing(self, enabled=True):
-    notIds = (
-      'idSeparator',
-      self.legendMenuIDs['clear_key'],
-      self.legendMenuIDs['clipboard_key']
-    )
     for item in self.legendLayer:
-      if item['id'] in notIds:
-        continue
       item['action'].setEnabled( enabled )
 
     if  enabled:
@@ -483,12 +450,6 @@ class LegendCatalogLayer():
         item['action'].setEnabled( self.statusEnableAssetsImage['activate_assets'] )
         c_ids += 1
       if c_ids == total_ids:
-        break
-
-  def enabledClearKey (self, enabled=True):
-    for item in self.legendLayer:
-      if item['id'] == self.legendMenuIDs['clear_key']:
-        item['action'].setEnabled( enabled )
         break
 
   @QtCore.pyqtSlot()

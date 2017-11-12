@@ -46,16 +46,54 @@ class CatalogPLPlugin:
     CatalogPL.copyExpression()
     
   def initGui(self):
-    msgtrans = "Catalog Planet Labs"
-    self.action = QtGui.QAction( CatalogPLPlugin.icon, msgtrans, self.iface.mainWindow() )
-    self.action.setObjectName("CatalogPL")
-    self.action.setWhatsThis( msgtrans )
-    self.action.setStatusTip( msgtrans )
-    self.action.triggered.connect( self.run )
-    self.ctl.enableRun.connect( self.action.setEnabled )
-
-    self.iface.addToolBarIcon( self.action )
-    self.iface.addPluginToRasterMenu( self.name, self.action )
+    dataActions = [
+      {
+        'isSepatator': False,
+        'name': 'Catalog Planet Labs',
+        'icon': QtGui.QIcon( CatalogPLPlugin.icon ),
+        'method': self.run
+      },
+      { 'isSepatator': True },
+      {
+        'isSepatator': False,
+        'name': 'Setting...',
+        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
+        'method': self.config
+      },
+      { 'isSepatator': True },             
+      {
+        'isSepatator': False,
+        'name': 'Clear key',
+        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
+        'method': self.clearKey
+      },
+      {
+        'isSepatator': False,
+        'name': 'Copy key to Clipboard',
+        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
+        'method': self.clipboardKey
+      }
+    ]
+    
+    mw = self.iface.mainWindow()
+    popupMenu = QtGui.QMenu( mw )
+    for d in dataActions:
+      if d['isSepatator']:
+        a = QtGui.QAction( mw )
+        a.setSeparator(True)
+      else:
+        a = QtGui.QAction( d['icon'], d['name'], mw )
+        a.triggered.connect( d['method'] )
+      self.iface.addPluginToRasterMenu( self.name, a )
+      popupMenu.addAction(  a )
+    defaultAction = popupMenu.actions()[0]
+    self.toolButton = QtGui.QToolButton()
+    self.toolButton.setPopupMode( QtGui.QToolButton.MenuButtonPopup )
+    self.toolButton.setMenu( popupMenu )
+    self.toolButton.setDefaultAction( defaultAction )
+    
+    self.actionPopupMenu = self.iface.addToolBarWidget( self.toolButton )
+    self.ctl.enableRun.connect( self.actionPopupMenu.setEnabled )
 
   def unload(self):
     self.iface.removePluginMenu( self.name, self.action )
@@ -65,7 +103,6 @@ class CatalogPLPlugin:
   
   @QtCore.pyqtSlot()
   def run(self):
-
     if self.iface.mapCanvas().layerCount() == 0:
       msg = "Need layer(s) in map"
       self.iface.messageBar().pushMessage( CatalogPLPlugin.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 2 )
@@ -82,3 +119,15 @@ class CatalogPLPlugin:
         return
 
     self.ctl.createLayerScenes()
+
+  @QtCore.pyqtSlot()
+  def config(self):
+    self.ctl.settingImages()
+
+  @QtCore.pyqtSlot()
+  def clearKey(self):
+    self.ctl.clearKey()
+
+  @QtCore.pyqtSlot()
+  def clipboardKey(self):
+    self.ctl.clipboardKey()

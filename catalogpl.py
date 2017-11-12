@@ -271,7 +271,7 @@ class CatalogPL(QtCore.QObject):
         self.catalog['ltg'].removeChildren( len( keys), len( layers) )
   
       def setNameGroupCatalog(total):
-        arg = ( self.catalog['satellite'], self.catalog['typeImage'], total ) 
+        arg = ( self.catalog['satellite'].title(), self.catalog['typeImage'], total ) 
         name = "PL Catalog {} ({}) [{}]".format( *arg )
         self.catalog['ltg'].setName( name )
 
@@ -356,7 +356,8 @@ class CatalogPL(QtCore.QObject):
       
       date1 = self.settings['date1'].toString( QtCore.Qt.ISODate )
       date2 = self.settings['date2'].toString( QtCore.Qt.ISODate )
-      name = "PL {}({} to {})".format( self.settings['current_asset'], date1, date2)
+      arg = ( self.settings['current_asset'].title(), date1, date2 )
+      name = "PL {}({} to {})".format( *arg )
       vl = QgsCore.QgsVectorLayer( uri, name, "memory" )
       # Add layer
       self.layer = QgsCore.QgsMapLayerRegistry.instance().addMapLayer( vl, addToLegend=False )
@@ -656,14 +657,12 @@ class CatalogPL(QtCore.QObject):
     if self.mngLogin.getKeySetting() is None:
       msg = "Already cleared the register key. Next run QGIS will need enter the key."
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.INFO, 4 )
-      self.legendCatalogLayer.enabledClearKey( False )
       return
     
     if QtGui.QMessageBox.Yes == dialogQuestion():
       self.mngLogin.removeKey()
       msg = "Cleared the register key. Next run QGIS will need enter the key."
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.INFO, 4 )
-      self.legendCatalogLayer.enabledClearKey( False )
 
   @QtCore.pyqtSlot()
   def clipboardKey(self):
@@ -679,7 +678,6 @@ class CatalogPL(QtCore.QObject):
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
     if dlg.exec_() == QtGui.QDialog.Accepted:
       self.settings = dlg.getData()
-      self.legendCatalogLayer.enabledProcessing()
 
   @QtCore.pyqtSlot()
   def createTMS_ServerXYZ(self):
