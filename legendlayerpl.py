@@ -33,20 +33,18 @@ class DialogImageSettingPL(QtGui.QDialog):
     def initGui():
       def setData():
         def getSizeCacheTMS():
+          ( path, dirs ) = self._getDirsCacheTMS()
+          if path is None:
+            return 0 
           total_size = 0
-          # # Files(XMLs)
-          w = self.findChild(QtGui.QPushButton, 'path')
-          path = w.text()
-          if not os.path.isdir( path ):
-            return 0
+          # Files(XMLs)
           absdir = lambda d: os.path.join( path, d)
           for f in os.listdir( path ):
             if os.path.isfile( absdir( f ) ):
-              total_size += os.path.getsize( absdir( f ) ) / 1024.0
-          #
-          dirs = self._getDirsCacheTMS()
+              total_size += os.path.getsize( absdir( f ) ) / 1024.0 # KB
+          # Directories
           if len( dirs ) == 0:
-            return total_size
+            return total_size/1024.0   # in MB
           for path in dirs: 
             for dirpath, dirnames, filenames in os.walk(path):
               total_size += os.path.getsize(dirpath) / 1024.0 # KB
@@ -196,9 +194,9 @@ class DialogImageSettingPL(QtGui.QDialog):
     w = self.findChild( QtGui.QPushButton, 'path' )
     tmsDir = os.path.join( w.text(), 'tms' )
     if not os.path.isdir( tmsDir ):
-      return []
+      return ( None, [] )
     dirs = [os.path.join(tmsDir, d) for d in os.listdir(tmsDir) if os.path.isdir(os.path.join(tmsDir, d))]
-    return dirs
+    return ( tmsDir, dirs )
 
   @staticmethod
   def getSettings():
@@ -273,17 +271,16 @@ class DialogImageSettingPL(QtGui.QDialog):
 
   @QtCore.pyqtSlot()
   def onClearCache(self):
-    # Get path
-    w = self.findChild( QtGui.QPushButton, 'path' )
-    path = w.text()
-    # Remove Files(XML)
+    # Remove Directories
+    ( path, dirs ) = self._getDirsCacheTMS()
+    if path is None:
+      return
+    # XML files
     absdir = lambda d: os.path.join( path, d)
     [ os.remove( absdir( f ) ) for f in os.listdir( path ) if os.path.isfile( absdir( f ) ) ]
-    # Remove Directories
-    dirs = self._getDirsCacheTMS()
-    if not len( dirs ) == 0:
-      for d in dirs:
-        shutil.rmtree(d)
+    # TMS directories
+    for d in dirs:
+      shutil.rmtree(d)
     title = self.titleClearCache.format(0)
     w = self.findChild( QtGui.QPushButton, 'clear_cache' )
     w.setText( title )
