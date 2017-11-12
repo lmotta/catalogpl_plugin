@@ -235,7 +235,6 @@ class API_PlanetLabs(QtCore.QObject):
   urlTMS = "https://tiles.planet.com/data/v1/{item_type}/{item_id}/{{z}}/{{x}}/{{y}}.png"
   urlAssets = "https://api.planet.com/data/v1/item-types/{item_type}/items/{item_id}/assets" 
 
-
   def __init__(self):
     super( API_PlanetLabs, self ).__init__()
     self.access = AccessSite()
@@ -326,7 +325,7 @@ class API_PlanetLabs(QtCore.QObject):
     self.currentUrl = url
     url = QtCore.QUrl.fromEncoded( url )
     self.access.finished.connect( finished )
-    credential = { 'user': API_PlanetLabs.validKey, 'password': ''}
+    credential = { 'user': API_PlanetLabs.validKey, 'password': '' }
     self.access.run( url, credential )
 
   def getAssetsStatus(self, item_type, item_id, setFinished):
@@ -581,3 +580,9 @@ class API_PlanetLabs(QtCore.QObject):
     tw.resizeColumnToContents( 1 )
     
     return tw
+
+  @staticmethod
+  def getURL_TMS(feat, sbands):
+    ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
+    url = API_PlanetLabs.urlTMS.format( item_type=item_type, item_id=feat['id'] )
+    return url

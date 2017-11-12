@@ -45,7 +45,7 @@ class MessageBarCancelProgress(QtCore.QObject):
 
       if hasProgressFile:
         self.pbFile = QtGui.QProgressBar( self.msgBar )
-        self.pbFile.setAlignment( Qt.AlignLeft )
+        self.pbFile.setAlignment( QtCore.Qt.AlignLeft )
         self.pbFile.setValue( 1 )
         lyt.addWidget( self.pbFile )
 
@@ -121,4 +121,3 @@ class MessageBarCancel(QtCore.QObject):
   def clickedCancel(self, checked):
     self.kill()
     self.isCancel = True
-

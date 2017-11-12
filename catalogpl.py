@@ -28,198 +28,9 @@ from apiqtpl import API_PlanetLabs
 from legendlayerpl import ( DialogImageSettingPL, LegendCatalogLayer )
 from legendlayer import LegendRasterGeom
 from managerloginkey import ManagerLoginKey
-from messagebarcancel import MessageBarCancel, MessageBarCancelProgress
+from messagebarcancel import MessageBarCancel, MessageBarCancelProgress 
+from workertms import WorkerCreateTMS_GDAL_WMS
 
-class WorkerCreateTMS_GDAL_WMS(QtCore.QObject):
-  finished = QtCore.pyqtSignal( dict )
-  stepProgress = QtCore.pyqtSignal( int )
-
-  def __init__(self, logMessage, legendRasterGeom ):
-    super(WorkerCreateTMS_GDAL_WMS, self).__init__()
-    self.logMessage, self.legendRasterGeom = logMessage, legendRasterGeom
-    self.isKilled = None # set in run
-    self.path = self.ctTMS = self.iterFeat = None # setting
-    self.ltgRoot = self.ltgCatalog = None # setting
-
-  def setting(self, id_layer, path, ctTMS, iterFeat, ltgRoot, ltgCatalog):
-   self.id_table = id_layer
-   self.path = path
-   self.ctTMS = ctTMS
-   self.iterFeat = iterFeat
-   self.ltgRoot = ltgRoot
-   self.ltgCatalog = ltgCatalog
-
-  @QtCore.pyqtSlot()
-  def run(self):
-    def saveTMS(feat, fileDownload):
-      def contenTargetWindow():
-        r = self.ctTMS.transform( feat.geometry().boundingBox() )
-        targetWindow  = { 'ulX': r.xMinimum(), 'ulY': r.yMaximum(), 'lrX': r.xMaximum(), 'lrY': r.yMinimum() }
-        return '<TargetWindow>\n'\
-              '  <UpperLeftX>%f</UpperLeftX>\n'\
-              '  <UpperLeftY>%f</UpperLeftY>\n'\
-              '  <LowerRightX>%f</LowerRightX>\n'\
-              '  <LowerRightY>%f</LowerRightY>\n'\
-              '</TargetWindow>\n' % (
-                targetWindow['ulX'], targetWindow['ulY'], targetWindow['lrX'], targetWindow['lrY'] )
-
-      def contentTMS():
-        return '<GDAL_WMS>\n'\
-              '<!-- Planet Labs -->\n'\
-              '<Service name="TMS">\n'\
-              '<ServerUrl>{server_url}</ServerUrl>\n'\
-              '<Transparent>TRUE</Transparent>\n'\
-              '<SRS>EPSG:3857</SRS>\n'\
-              '<ImageFormat>image/png</ImageFormat>\n'\
-              '</Service>\n'\
-              '<DataWindow>\n'\
-              '<UpperLeftX>-20037508.34</UpperLeftX>\n'\
-              '<UpperLeftY>20037508.34</UpperLeftY>\n'\
-              '<LowerRightX>20037508.34</LowerRightX>\n'\
-              '<LowerRightY>-20037508.34</LowerRightY>\n'\
-              '<TileLevel>15</TileLevel>\n'\
-              '<TileCountX>1</TileCountX>\n'\
-              '<TileCountY>1</TileCountY>\n'\
-              '<YOrigin>top</YOrigin>\n'\
-              '</DataWindow>\n'\
-              '{target_window}'\
-              '<Projection>EPSG:3857</Projection>\n'\
-              '<BlockSizeX>256</BlockSizeX>\n'\
-              '<BlockSizeY>256</BlockSizeY>\n'\
-              '<BandsCount>4</BandsCount>\n'\
-              '<DataType>byte</DataType>\n'\
-              '<UserAgent>Mozilla/5.0</UserAgent>\n'\
-              '<ZeroBlockHttpCodes>204,303,400,404,500,501</ZeroBlockHttpCodes>\n'\
-              '<ZeroBlockOnServerException>true</ZeroBlockOnServerException>\n'\
-              '<MaxConnections>5</MaxConnections>\n'\
-              '<UserPwd>{user_pwd}:</UserPwd>\n'\
-              '<Cache>\n'\
-              '<Path>{cache_path}</Path>\n'\
-              '</Cache>\n'\
-              '</GDAL_WMS>\n'.format( server_url=server_url, target_window=target_window, user_pwd=user_pwd, cache_path=cache_path )
-
-      server_url = API_PlanetLabs.urlTMS.format( item_type=item_type, item_id=feat['id'] )
-      # Change for GDAL_WMS
-      for c in ['{z}', '{x}', '{y}']:
-        server_url = server_url.replace( c, "${0}".format( c ) )
-      cache_path = "{0}/cache_pl_{1}.tms".format( self.path, feat['id'] )
-      target_window = contenTargetWindow()
-      content_tms = contentTMS() 
-      fileDownload.write( content_tms )
-
-    def addTMS():
-      if not image in sources_catalog_group:
-        geomTransf = QgsCore.QgsGeometry(feat.geometry() )
-        geomTransf.transform( self.ctTMS )
-        wkt_geom = geomTransf.exportToWkt()
-        layer = QgsCore.QgsRasterLayer( image, os.path.split( image )[-1] )
-        layer.setCustomProperty( 'wkt_geom', wkt_geom )
-        layer.setCustomProperty( 'date', feat['acquired'] )
-        layer.setCustomProperty( 'id_table', self.id_table )
-        layer.setCustomProperty( 'id_image', feat['id'] )
-        QgsCore.QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
-        self.ltgCatalog.addLayer( layer).setVisible( QtCore.Qt.Unchecked )
-        self.legendRasterGeom.setLayer( layer )
-
-    mlr = QgsCore.QgsMapLayerRegistry.instance()
-    user_pwd = API_PlanetLabs.validKey
-    sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
-
-    self.isKilled = False
-    step = totalError = 0
-    for feat in self.iterFeat:
-      step += 1
-      self.stepProgress.emit( step )  
-      if self.isKilled:
-        self.iterFeat.close()
-        break
-      item_id = feat['id']
-      ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
-      if not ok:
-        msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
-        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
-        totalError += 1
-        continue
-      image = os.path.join( self.path, u"{0}_tms.xml".format( feat['id'] ) )
-      if not QtCore.QFile.exists( image ):
-        fileDownload = QtCore.QFile( image )
-        fileDownload.open( QtCore.QIODevice.WriteOnly )
-        saveTMS( feat, fileDownload )
-        fileDownload.close()
-
-      addTMS()
-
-    message  = { 'totalError': totalError }
-    self.finished.emit( message )
-
-  def kill(self):
-    self.isKilled = True
-
-# Check change in WorkerCreateTMS_GDAL_WMS(path,...)
-# Not Runnig!
-
-class WorkerCreateTMS_ServerXYZ(QtCore.QObject):
-
-  finished = QtCore.pyqtSignal( dict )
-  stepProgress = QtCore.pyqtSignal( int )
-
-  def __init__(self, logMessage, legendRasterGeom ):
-    super(WorkerCreateTMS_ServerXYZ, self).__init__()
-    self.logMessage, self.legendRasterGeom = logMessage, legendRasterGeom
-    self.isKilled = None # set in run
-    self.iterFeat = self.ltgRoot = self.ltgCatalog = self.msgDownload = None # setting
-
-  def setting(self, iterFeat, ltgRoot, ltgCatalog):
-   self.iterFeat, self.ltgRoot, self.ltgCatalog  = iterFeat, ltgRoot, ltgCatalog
-
-  @QtCore.pyqtSlot()
-  def run(self):
-    def addTMS():
-      server_url = API_PlanetLabs.urlTMS.format( item_type=item_type, item_id=item_id )
-      urlkey = "{0}?api_key={1}".format( server_url, user_pwd )
-      uri.setParam('url', urlkey )
-      lyr = QgsCore.QgsRasterLayer( str( uri.encodedUri() ), item_id , 'wms')
-      if not lyr.isValid():
-        msg = "Error create TMS from {0}: Invalid layer".format( item_id )
-        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
-        totalError += 1
-        return
-      if not lyr.source() in sources_catalog_group:
-        lyr.setCustomProperty( 'wkt_geom', wkt_geom )
-        mlr.addMapLayer( lyr, addToLegend=False )
-        self.ltgCatalog.addLayer( lyr ).setVisible( QtCore.Qt.Unchecked )
-        self.legendRasterGeom.setLayer( lyr )
-
-    mlr = QgsCore.QgsMapLayerRegistry.instance()
-    user_pwd = API_PlanetLabs.validKey
-    uri = QgsCore.QgsDataSourceURI()
-    uri.setParam('type', 'xyz' )
-    sources_catalog_group = map( lambda item: item.layer().source(), self.ltgRoot.findLayers() )
-
-    self.isKilled = False
-    step = totalError = 0
-    for feat in self.iterFeat:
-      step += 1
-      self.stepProgress.emit( step )
-      if self.isKilled:
-        self.iterFeat.close()
-        break
-      item_id = feat['id']
-      ( ok, item_type ) = API_PlanetLabs.getValue( feat['meta_json'], [ 'item_type' ] )
-      if not ok:
-        msg = "Error create TMS from {0}: {1}".format( item_id, item_type)
-        self.logMessage( msg, CatalogPL.pluginName, QgsCore.QgsMessageLog.CRITICAL )
-        totalError += 1
-        continue
-      wkt_geom = feat.geometry().exportToWkt()
-      addTMS()
-      uri.removeParam('url')
-
-    message  = { 'totalError': totalError }
-    self.finished.emit( message )
-
-  def kill(self):
-    self.isKilled = True
 
 class CatalogPL(QtCore.QObject):
 
@@ -335,7 +146,7 @@ class CatalogPL(QtCore.QObject):
     msg = "selected" if hasSelected else "all"
     msg = "Processing {0} images({1})...".format( totalFeat, msg )
     arg = ( CatalogPL.pluginName, self.msgBar, msg, totalFeat, funcKill, hasProgressFile )
-    self.mbcancel = MessageBarCancelProgressDownload( *arg )
+    self.mbcancel = MessageBarCancelProgress( *arg )
     self.enableRun.emit( False )
     self.legendCatalogLayer.enabledProcessing( False )
     return { 'isOk': True, 'iterFeat': iterFeat }
@@ -857,7 +668,7 @@ class CatalogPL(QtCore.QObject):
       os.makedirs( path_tms )
 
     self.worker.finished.connect( finished )
-    self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog )
+    self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog ) # 
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
@@ -1008,7 +819,17 @@ class CatalogPL(QtCore.QObject):
 
     self.worker.finished.connect( finished )
     arg = ( self.layer.id(), path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
-    self.worker.setting( *arg )
+    data = {
+      'pluginName': CatalogPL.pluginName,
+      'getURL': API_PlanetLabs.getURL_TMS,
+      'user_pwd': { 'user': API_PlanetLabs.validKey, 'pwd': '' }, 
+      'path': path_tms,
+      'ltgCatalog': self.ltgCatalog,
+      'id_layer': self.layer.id(),
+      'ctTMS': ctTMS,
+      'iterFeat': iterFeat # feat: 'id', 'acquired', 'meta_json'
+    }
+    self.worker.setting( data )
     
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
