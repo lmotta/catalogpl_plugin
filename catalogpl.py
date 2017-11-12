@@ -90,7 +90,7 @@ class CatalogPL(QtCore.QObject):
     self.legendCatalogLayer = self.settings = None
     self.imageDownload = self.totalReady = None
     self.currentItem = None
-    self.ltgCatalog = None
+    self.catalog = { 'ltg': None, 'satellite': None, 'typeImage': None }
 
     setLegendCatalogLayer()
     setSearchSettings()
@@ -177,13 +177,25 @@ class CatalogPL(QtCore.QObject):
     self.msgBar.clearWidgets()
     self.msgBar.pushMessage( self.pluginName, msg, typMessage, 4 )
 
-  def _setGroupCatalog(self, ltgRoot, typeCatalog):
-    nameGroup = "{0} - Catalog {1}".format( self.layer.name(), typeCatalog )
-    self.ltgCatalog = ltgRoot.findGroup( nameGroup  )
-    if self.ltgCatalog is None:
-      self.ltgCatalog = ltgRoot.addGroup( nameGroup )
+  def _setGroupCatalog(self, typeImage):
+    def existsGroupCatalog():
+      groups = [ n for n in root.children() if n.nodeType() == QgsCore.QgsLayerTreeNode.NodeGroup ]
+      return self.catalog['ltg'] in groups
+
+    def createGroupCatalog():
+      self.catalog['satellite'] = self.settings['current_asset']
+      self.catalog['typeImage'] = typeImage 
+      self.catalog['ltg'] = root.addGroup( 'Calculating...' )
+
+    root = QgsCore.QgsProject.instance().layerTreeRoot()
+    if self.catalog['ltg'] is None:
+      createGroupCatalog()
+    if not self.catalog['satellite'] == self.settings['current_asset']:
+      createGroupCatalog()
+    if not existsGroupCatalog():
+      createGroupCatalog()
     else:
-      self.ltgCatalog.removeAllChildren()
+      self.catalog['ltg'].removeAllChildren()
 
   def _getValuesAssets(self, assets_status):
     def getValues(asset):
@@ -221,37 +233,52 @@ class CatalogPL(QtCore.QObject):
       return { 'isOk': True, 'message': msg }
     return { 'isOk': False }
 
-  def _sortGroupCatalog(self, reverse=True):
-    def getLayers():
-      ltls = self.ltgCatalog.findLayers()
-      if len( ltls ) == 0:
-        return
-      layers = [ ltl.layer() for ltl in ltls ] 
-      return layers
+  def _sortNameGroupCatalog(self, reverse=True):
+      def getLayers():
+        ltls = self.catalog['ltg'].findLayers()
+        if len( ltls ) == 0:
+          return
+        # Sort layer
+        d_name_layerd = {}
+        for ltl in ltls:
+          layer = ltl.layer()
+          name = layer.name()
+          d_name_layerd[ name ] = layer
+        l_name_sorted = sorted( d_name_layerd.keys() )
+        #
+        layers = [ d_name_layerd[ name] for name in  l_name_sorted ]
+  
+        return layers
+  
+      def getGroupsDate(layers):
+        groupDates =  {} # 'date': layers }
+        for l in layers:
+          date = l.customProperty('date', '_errorT').split('T')[0]
+          if not date in groupDates.keys():
+            groupDates[ date ] = [ l ]
+          else:
+            groupDates[ date ].append( l )
+        return groupDates
+  
+      def addGroupDates(groupDates):
+        keys = sorted(groupDates.keys(), reverse=reverse )
+        for idx, key in enumerate( keys ):
+          name = "{0} [{1}]".format( key, len( groupDates[ key ] ) )
+          ltg = self.catalog['ltg'].insertGroup( idx, name )
+          for l in groupDates[ key ]:
+            ltg.addLayer( l ).setVisible( QtCore.Qt.Unchecked )
+          ltg.setExpanded(False)
+        self.catalog['ltg'].removeChildren( len( keys), len( layers) )
+  
+      def setNameGroupCatalog(total):
+        arg = ( self.catalog['satellite'], self.catalog['typeImage'], total ) 
+        name = "PL Catalog {} ({}) [{}]".format( *arg )
+        self.catalog['ltg'].setName( name )
 
-    def getGroupsDate(layers):
-      groupDates =  {} # 'date': layers }
-      for l in layers:
-        date = l.customProperty('date', '_errorT').split('T')[0]
-        if not date in groupDates.keys():
-          groupDates[ date ] = [ l ]
-        else:
-          groupDates[ date ].append( l )
-      return groupDates
-
-    def addGroupDates(groupDates):
-      keys = sorted(groupDates.keys(), reverse=reverse )
-      for idx, key in enumerate( keys ):
-        name = "{0} [{1}]".format( key, len( groupDates[ key ] ) )
-        ltg = self.ltgCatalog.insertGroup( idx, name )
-        for l in groupDates[ key ]:
-          ltg.addLayer( l ).setVisible( QtCore.Qt.Unchecked )
-        ltg.setExpanded(False)
-      self.ltgCatalog.removeChildren( len( keys), len( layers) )
-
-    layers = getLayers()
-    groupDates = getGroupsDate( layers )
-    addGroupDates( groupDates )
+      layers = getLayers()
+      groupDates = getGroupsDate( layers )
+      addGroupDates( groupDates )
+      setNameGroupCatalog( len( groupDates ) )
 
   def hostLive(self):
     def setFinished(response):
@@ -662,9 +689,7 @@ class CatalogPL(QtCore.QObject):
       self.worker.finished.disconnect( finished )
       self._endProcessing( "Create TMS", message['totalError'] )
 
-    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog( ltgRoot, 'TMS' )
-
+    self._setGroupCatalog('TMS')
     r = self._startProcess( self.worker.kill )
     if not r['isOk']:
       return
@@ -675,7 +700,7 @@ class CatalogPL(QtCore.QObject):
       os.makedirs( path_tms )
 
     self.worker.finished.connect( finished )
-    self.worker.setting( iterFeat, ltgRoot, self.ltgCatalog ) # 
+    self.worker.setting( iterFeat, ltgRoot, self.catalog['ltg'] ) # 
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
@@ -807,12 +832,10 @@ class CatalogPL(QtCore.QObject):
     def finished( message ):
       self.thread.quit()
       self.worker.finished.disconnect( finished )
-      self._sortGroupCatalog()
+      self._sortNameGroupCatalog()
       self._endProcessing( "Create TMS", message['totalError'] )
 
-    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog( ltgRoot, 'TMS' )
-
+    self._setGroupCatalog('TMS')
     r = self._startProcess( self.worker.kill )
     if not r['isOk']:
       return
@@ -825,13 +848,12 @@ class CatalogPL(QtCore.QObject):
     ctTMS = QgsCore.QgsCoordinateTransform( self.layer.crs(), cr3857 )
 
     self.worker.finished.connect( finished )
-    arg = ( self.layer.id(), path_tms, ctTMS, iterFeat, ltgRoot, self.ltgCatalog )
     data = {
       'pluginName': CatalogPL.pluginName,
       'getURL': API_PlanetLabs.getURL_TMS,
       'user_pwd': { 'user': API_PlanetLabs.validKey, 'pwd': '' }, 
       'path': path_tms,
-      'ltgCatalog': self.ltgCatalog,
+      'ltgCatalog': self.catalog['ltg'],
       'id_layer': self.layer.id(),
       'ctTMS': ctTMS,
       'iterFeat': iterFeat # feat: 'id', 'acquired', 'meta_json'
@@ -952,7 +974,7 @@ class CatalogPL(QtCore.QObject):
         layer.setCustomProperty( 'id_table', id_table )
         layer.setCustomProperty( 'id_image', id_image )
         QgsCore.QgsMapLayerRegistry.instance().addMapLayer( layer, addToLegend=False )
-        self.ltgCatalog.addLayer( layer )
+        self.catalog['ltg'].addLayer( layer )
         self.legendRasterGeom.setLayer( layer )
       
       arg = ( path_img, u"{0}_{1}.tif".format( feat['id'], suffix ) )
@@ -978,10 +1000,8 @@ class CatalogPL(QtCore.QObject):
           addImage()
       return True # Not cancel by user
 
-    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
-    self._setGroupCatalog( ltgRoot, 'TIF' )
-
-    r = self._startProcess( self.apiPL.kill, True )
+    self._setGroupCatalog('TIF')
+    r = self._startProcess( self.worker.kill, True )
     if not r['isOk']:
       return
     iterFeat = r['iterFeat']
@@ -1014,7 +1034,7 @@ class CatalogPL(QtCore.QObject):
           if not createImage( *arg ):
             break # Cancel by user
 
-    self._sortGroupCatalog()
+    self._sortNameGroupCatalog()
     self._endProcessing( "Download Images", dataLocal['totalError'] ) 
 
   @staticmethod
