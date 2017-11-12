@@ -33,11 +33,20 @@ class DialogImageSettingPL(QtGui.QDialog):
     def initGui():
       def setData():
         def getSizeCacheTMS():
+          total_size = 0
+          # # Files(XMLs)
+          w = self.findChild(QtGui.QPushButton, 'path')
+          path = w.text()
+          if not os.path.isdir( path ):
+            return 0
+          absdir = lambda d: os.path.join( path, d)
+          for f in os.listdir( path ):
+            if os.path.isfile( absdir( f ) ):
+              total_size += os.path.getsize( absdir( f ) ) / 1024.0
+          #
           dirs = self._getDirsCacheTMS()
           if len( dirs ) == 0:
-            return 0
-
-          total_size = 0
+            return total_size
           for path in dirs: 
             for dirpath, dirnames, filenames in os.walk(path):
               total_size += os.path.getsize(dirpath) / 1024.0 # KB
@@ -264,6 +273,13 @@ class DialogImageSettingPL(QtGui.QDialog):
 
   @QtCore.pyqtSlot()
   def onClearCache(self):
+    # Get path
+    w = self.findChild( QtGui.QPushButton, 'path' )
+    path = w.text()
+    # Remove Files(XML)
+    absdir = lambda d: os.path.join( path, d)
+    [ os.remove( absdir( f ) ) for f in os.listdir( path ) if os.path.isfile( absdir( f ) ) ]
+    # Remove Directories
     dirs = self._getDirsCacheTMS()
     if not len( dirs ) == 0:
       for d in dirs:
