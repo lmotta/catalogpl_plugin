@@ -58,15 +58,15 @@ class CatalogPL(QtCore.QObject):
       self.legendCatalogLayer = LegendCatalogLayer( *arg )
 
     def setSearchSettings():
-      self.searchSettings = DialogImageSettingPL.getSettings()
+      self.settings = DialogImageSettingPL.getSettings()
       
       # Next step add all informations (DialogImageSettingPL.getSettings)
-      self.searchSettings['current_asset'] = 'planet'
-      self.searchSettings['udm'] = False
+      self.settings['current_asset'] = 'planet'
+      self.settings['udm'] = False
       date2 = QtCore.QDate.currentDate()
       date1 = date2.addMonths( -1 )
-      self.searchSettings['date1'] = date1 
-      self.searchSettings['date2'] = date2
+      self.settings['date1'] = date1 
+      self.settings['date2'] = date2
 
     super(CatalogPL, self).__init__()
     self.canvas = QgsUtils.iface.mapCanvas()
@@ -87,7 +87,7 @@ class CatalogPL(QtCore.QObject):
     self.hasCriticalMessage = None
     self.url_scenes = self.scenes = self.total_features_scenes = None 
     self.pixmap = self.messagePL = self.isOkPL = None
-    self.legendCatalogLayer = self.searchSettings = None
+    self.legendCatalogLayer = self.settings = None
     self.imageDownload = self.totalReady = None
     self.currentItem = None
     self.ltgCatalog = None
@@ -326,12 +326,19 @@ class CatalogPL(QtCore.QObject):
       l_fields.insert( 0, "Multipolygon?crs=epsg:4326" )
       l_fields.append( "index=yes" )
       uri = '&'.join( l_fields )
-      vl = QgsCore.QgsVectorLayer( uri, "pl_scenes", "memory" )
+      
+      date1 = self.settings['date1'].toString( QtCore.Qt.ISODate )
+      date2 = self.settings['date2'].toString( QtCore.Qt.ISODate )
+      name = "PL {}({} to {})".format( self.settings['current_asset'], date1, date2)
+      vl = QgsCore.QgsVectorLayer( uri, name, "memory" )
+      # Add layer
       self.layer = QgsCore.QgsMapLayerRegistry.instance().addMapLayer( vl, addToLegend=False )
-      ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
-      self.layerTree = ltgRoot.insertLayer(0, self.layer )
-      self.layer.loadNamedStyle( os.path.join( os.path.dirname( __file__ ), CatalogPL.styleFile ) )
+      self.layerTree = QgsCore.QgsProject.instance().layerTreeRoot().insertLayer( 0, self.layer )
+      # Symbology
+      ns = os.path.join( os.path.dirname( __file__ ), CatalogPL.styleFile )
+      self.layer.loadNamedStyle( ns )
       QgsUtils.iface.legendInterface().refreshLayerSymbology( self.layer )
+      self.layerTree.setVisible( QtCore.Qt.Unchecked )
 
     def removeFeatures():
       prov = self.layer.dataProvider()
@@ -475,7 +482,7 @@ class CatalogPL(QtCore.QObject):
           'landsat8': 'Landsat8L1G',
           'sentinel2': 'Sentinel2L1C'
         }
-        return [ item_types[ self.searchSettings['current_asset'] ] ]
+        return [ item_types[ self.settings['current_asset'] ] ]
 
       def finished():
         self.canvas.scene().removeItem( rb )
@@ -495,8 +502,8 @@ class CatalogPL(QtCore.QObject):
           msg = "Canceled the search of images. Removed %d features" % self.total_features_scenes
         self.msgBar.pushMessage( CatalogPL.pluginName, msg, typeMessage, 4 )
 
-      date1 = self.searchSettings['date1']
-      date2 = self.searchSettings['date2']
+      date1 = self.settings['date1']
+      date2 = self.settings['date2']
       days = date1.daysTo( date2)
       date1, date2 = date1.toString( QtCore.Qt.ISODate ), date2.toString( QtCore.Qt.ISODate )
       sdate1 = "{0}T00:00:00.000000Z".format( date1 )
@@ -555,14 +562,14 @@ class CatalogPL(QtCore.QObject):
       finished()
 
     def checkLayerLegend():
-      # self.searchSettings setting by __init__.setSearchSettings()
-      if self.searchSettings['isOk']:
+      # self.settings setting by __init__.setSearchSettings()
+      if self.settings['isOk']:
         return True
-      if not self.searchSettings['has_path']:
+      if not self.settings['has_path']:
         msg = "Please setting the directory for download in Planet Labs Catalog layer"
       else:
         msg = "The directory '{0}' not found, please setting directory in Planet Labs Catalog layer"
-        msg = msg.format( self.searchSettings['path'] )
+        msg = msg.format( self.settings['path'] )
       self.msgBar.pushMessage( CatalogPL.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 6 )
       return False
 
@@ -641,10 +648,10 @@ class CatalogPL(QtCore.QObject):
 
   @QtCore.pyqtSlot()
   def settingImages(self):
-    settings = self.searchSettings if self.searchSettings['isOk'] else None 
+    settings = self.settings if self.settings['isOk'] else None 
     dlg = DialogImageSettingPL( self.mainWindow, self.icon, settings )
     if dlg.exec_() == QtGui.QDialog.Accepted:
-      self.searchSettings = dlg.getData()
+      self.settings = dlg.getData()
       self.legendCatalogLayer.enabledProcessing()
 
   @QtCore.pyqtSlot()
@@ -663,7 +670,7 @@ class CatalogPL(QtCore.QObject):
       return
     iterFeat = r['iterFeat']
 
-    path_tms = os.path.join( self.searchSettings['path'], 'tms')
+    path_tms = os.path.join( self.settings['path'], 'tms')
     if not os.path.exists( path_tms ):
       os.makedirs( path_tms )
 
@@ -811,7 +818,7 @@ class CatalogPL(QtCore.QObject):
       return
     iterFeat = r['iterFeat']
 
-    path_tms = os.path.join( self.searchSettings['path'], 'tms')
+    path_tms = os.path.join( self.settings['path'], 'tms')
     if not os.path.exists( path_tms ):
       os.makedirs( path_tms )
     cr3857 = QgsCore.QgsCoordinateReferenceSystem( 3857, QgsCore.QgsCoordinateReferenceSystem.EpsgCrsId )
@@ -867,7 +874,7 @@ class CatalogPL(QtCore.QObject):
     totalError = step = 0
     self.pixmap = None # Populate(self.apiPL.getThumbnail) and catch(setFinished)
     id_thumbnail = self.layer.fieldNameIndex('thumbnail')
-    path_thumbnail = os.path.join( self.searchSettings['path'], 'thumbnail')
+    path_thumbnail = os.path.join( self.settings['path'], 'thumbnail')
     if not os.path.exists( path_thumbnail ):
       os.makedirs( path_thumbnail )
     isEditable = self.layer.isEditable()
@@ -979,7 +986,7 @@ class CatalogPL(QtCore.QObject):
       return
     iterFeat = r['iterFeat']
 
-    path_img = os.path.join( self.searchSettings['path'], 'tif')    
+    path_img = os.path.join( self.settings['path'], 'tif')    
     if not os.path.exists( path_img ):
       os.makedirs( path_img )
       
@@ -999,7 +1006,7 @@ class CatalogPL(QtCore.QObject):
         arg = [ asset ] + arg_base + [ True ] 
         if not createImage( *arg ):
           break # Cancel by user
-      if self.searchSettings['udm']:
+      if self.settings['udm']:
         asset = 'udm'
         if valuesAssets[ asset ]['isOk'] and valuesAssets[ asset ].has_key('location'):
           arg_base = [ valuesAssets[ asset ]['location'] ] + arg_core
