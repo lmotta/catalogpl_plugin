@@ -59,7 +59,7 @@ class CatalogPL(QtCore.QObject):
 
     def setSearchSettings():
       self.settings = DialogImageSettingPL.getSettings()
-      
+                 
       # Next step add all informations (DialogImageSettingPL.getSettings)
       self.settings['current_asset'] = 'planet'
       self.settings['udm'] = False
@@ -679,6 +679,7 @@ class CatalogPL(QtCore.QObject):
     if dlg.exec_() == QtGui.QDialog.Accepted:
       self.settings = dlg.getData()
 
+  # Need Changed! Not used 2017-12-20
   @QtCore.pyqtSlot()
   def createTMS_ServerXYZ(self):
     @QtCore.pyqtSlot( dict )
@@ -698,7 +699,7 @@ class CatalogPL(QtCore.QObject):
       os.makedirs( path_tms )
 
     self.worker.finished.connect( finished )
-    self.worker.setting( iterFeat, ltgRoot, self.catalog['ltg'] ) # 
+    self.worker.setting( iterFeat, ltgRoot, self.catalog['ltg'] )
     self.worker.stepProgress.connect( self.mbcancel.step )
     self.thread.start() # Start Worker
     #self.worker.run() #DEBUGER
@@ -1010,6 +1011,7 @@ class CatalogPL(QtCore.QObject):
       
     crsLayer = self.layer.crs()
     id_table = self.layer.id()
+    ltgRoot = QgsCore.QgsProject.instance().layerTreeRoot()
     dataLocal = { 'totalError': 0, 'step': 0, 'ltgRoot': ltgRoot }
     self.totalReady = None
     loop = QtCore.QEventLoop()

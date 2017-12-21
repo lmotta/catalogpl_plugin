@@ -21,6 +21,8 @@ Tested with QGIS 2.18.13
 Luiz Motta
 
 ## Changelog
+- 2017-12-20
+Fixed error ltgRoot in downloadImages(catalogpl.py).
 - 2017-11-12
 Change menus, catalog group, scene layer, count total dates. Fixed use in Windows
 - 2017-10-06
