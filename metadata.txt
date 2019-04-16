@@ -1,61 +1,68 @@
 [general]
-name=Catalog Planet Labs
-description=This plugin lets you get images from the Planet Labs API(Version 1).
-about=This plugin lets you get images from the Planet Labs API(Version 1), by performing searches for images that intersect with the extent of the map window.
+name:Catalog Planet Labs
+description:This plugin lets you get images from the Planet Labs API(Version 1).
+about:This plugin lets you get images from the Planet Labs API(Version 1), by performing searches for images that intersect with the extent of the map window.
   It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
   You need a key from Planet Labs in order to use this plugin.
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
-  With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
-  add TMS images.
-  See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis-v1
-  Tested with QGIS 2.18.13
-version=1.7.1
-qgisMinimumVersion=2.18
-category=Raster
-author=Luiz Motta
-email=motta.luiz@gmail.com
-changelog=1.7.1
+  With this plugin, you can download full images(type analytic) and view the XYZ Tiles services.
+
+version:2.0
+qgisMinimumVersion:3.4
+
+author:Luiz Motta
+email:motta.luiz@gmail.com
+
+category:Plugin
+
+tags:catalog,raster, satellite, Planet Labs
+
+homepage:https://github.com/lmotta/catalogpl_plugin/wiki
+tracker:https://github.com/lmotta/catalogpl_plugin/issues
+repository:https://github.com/catalogpl_plugin/
+
+icon:planet.svg
+
+experimental:True
+deprecated:False
+
+changelog: 2.0(2019-03-19)
+  Migrated to QGIS 3.4
+  - 1.7.1
   Fixed error ltgRoot in downloadImages(catalogpl.py).
   Thanks for Dr. Qiusheng Wu.
-  1.7
+  - 1.7
   Change menus, catalog group, scene layer, count total dates. Fixed use in Windows
-  1.6
+  - 1.6
   Add groups of images with same date, add menu Open Form in images, clear cache of TMS, and add action 'Add selection' to pl_scenes.
-  1.5
+  - 1.5
   Reverse images order in group catalog, add directories,
   tms, tif, thumbnail, inside download directory 
-  1.4
+  - 1.4
   Fix cache_path when save TMS
-  1.3
+  - 1.3
   Change TMS of Tile Server XYZ to GDAL_WMS
-  1.2
+  - 1.2
   Fixed when the first use of plugin(not set the directory), not show the setting
-  1.1
-  - Changed checkbox to radiobutton for images, only one type of image for searching. 
-  1.0
-  - Updated to API Planet V1
-  0.8
-  - Fixed message when error download and add message log for errors
-  0.7
-  - Add context menu remove key
-  0.6
-  - Add context menu image full and TMS
-  0.5
-  - Update the checkLayerLegend(), remove clean register
-  0.4
-  - Add cancel for TMS for download
-  0.3
-  - Add TMS for download
-  0.2
-  - Add feature for download images and thumbnails
-  - Add metadata in table and refactoring codes.
-  0.1
-  - Start of plugin
-
-tags=catalog,raster, satellite, Planet Labs
-homepage=https://github.com/lmotta/catalogpl_plugin
-tracker=https://github.com/lmotta/catalogpl_plugin
-repository=https://github.com/lmotta/catalogpl_plugin
-icon=catalogpl.svg
-experimental=True
-deprecated=False
+  - 1.1
+  Changed checkbox to radiobutton for images, only one type of image for searching. 
+  - 1.0
+  Updated to API Planet V1
+  - 0.8
+  Fixed message when error download and add message log for errors
+  - 0.7
+  Add context menu remove key
+  - 0.6
+  Add context menu image full and TMS
+  - 0.5
+  Update the checkLayerLegend(), remove clean register
+  - 0.4
+  Add cancel for TMS for download
+  - 0.3
+  Add TMS for download
+  - 0.2
+  Add feature for download images and thumbnails
+  Add metadata in table and refactoring codes.
+  - 0.1
+  Start of plugin
+  

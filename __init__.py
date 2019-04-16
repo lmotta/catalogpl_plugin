@@ -2,9 +2,9 @@
 """
 /***************************************************************************
 Name                 : Catalog Planet Labs
-Description          : Create catalog from Planet Labs
-Date                 : April, 2015
-copyright            : (C) 2015 by Luiz Motta
+Description          : Catalog Planet Labs
+Date                 : March, 2019
+copyright            : (C) 2019 by Luiz Motta
 email                : motta.luiz@gmail.com
 
  ***************************************************************************/
@@ -19,115 +19,64 @@ email                : motta.luiz@gmail.com
  ***************************************************************************/
 """
 
+__author__ = 'Luiz Motta'
+__date__ = '2019-03-13'
+__copyright__ = '(C) 2019, Luiz Motta'
+__revision__ = '$Format:%H$'
+
+
 import os
 
-from PyQt4 import QtCore, QtGui
-from qgis import core as QgsCore, gui as QgsGui
+from qgis.PyQt.QtCore import QObject, Qt, pyqtSlot
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction
 
-from catalogpl import CatalogPL
-from apiqtpl import API_PlanetLabs
+from .planetlabs import DockWidgetPlanetLabs
 
 def classFactory(iface):
   return CatalogPLPlugin( iface )
 
-class CatalogPLPlugin:
+class CatalogPLPlugin(QObject):
+    def __init__(self, iface):
+        super().__init__()
+        self.iface = iface
+        self.name = u"Catalog Planet Labs"
+        self.dock = None
 
-  icon = QtGui.QIcon( os.path.join( os.path.dirname(__file__), 'catalogpl.svg' ) )
-  pluginName = "Catalog Planet Labs"
+    def initGui(self):
+        name = "Catalog Planet Labs"
+        about = "Catalog Planet Labs"
+        icon = QIcon( os.path.join( os.path.dirname(__file__), 'planet.svg' ) )
+        self.action = QAction( icon, name, self.iface.mainWindow() )
+        self.action.setObjectName( name.replace(' ', '') )
+        self.action.setWhatsThis( about )
+        self.action.setStatusTip( about )
+        self.action.setCheckable( True )
+        self.action.triggered.connect( self.run )
 
-  def __init__(self, iface):
-    
-    self.iface = iface
-    self.name = u"&Catalog Planet Labs"
-    self.msgBar = iface.messageBar()
-    self.action = None
-    self.ctl = CatalogPL( CatalogPLPlugin.icon )
+        self.iface.addToolBarIcon( self.action )
+        self.iface.addPluginToMenu( self.name, self.action )
 
-    CatalogPL.copyExpression()
-    
-  def initGui(self):
-    dataActions = [
-      {
-        'isSepatator': False,
-        'name': 'Catalog Planet Labs',
-        'icon': QtGui.QIcon( CatalogPLPlugin.icon ),
-        'method': self.run
-      },
-      { 'isSepatator': True },
-      {
-        'isSepatator': False,
-        'name': 'Setting...',
-        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
-        'method': self.config
-      },
-      { 'isSepatator': True },             
-      {
-        'isSepatator': False,
-        'name': 'Clear key',
-        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
-        'method': self.clearKey
-      },
-      {
-        'isSepatator': False,
-        'name': 'Copy key to Clipboard',
-        'icon': QgsCore.QgsApplication.getThemeIcon('/mActionOptions.svg'),
-        'method': self.clipboardKey
-      }
-    ]
-    
-    mw = self.iface.mainWindow()
-    popupMenu = QtGui.QMenu( mw )
-    for d in dataActions:
-      if d['isSepatator']:
-        a = QtGui.QAction( mw )
-        a.setSeparator(True)
-      else:
-        a = QtGui.QAction( d['icon'], d['name'], mw )
-        a.triggered.connect( d['method'] )
-      self.iface.addPluginToRasterMenu( self.name, a )
-      popupMenu.addAction(  a )
-    defaultAction = popupMenu.actions()[0]
-    self.toolButton = QtGui.QToolButton()
-    self.toolButton.setPopupMode( QtGui.QToolButton.MenuButtonPopup )
-    self.toolButton.setMenu( popupMenu )
-    self.toolButton.setDefaultAction( defaultAction )
-    
-    self.actionPopupMenu = self.iface.addToolBarWidget( self.toolButton )
-    self.ctl.enableRun.connect( self.actionPopupMenu.setEnabled )
+        self.dock = DockWidgetPlanetLabs( self.iface )
+        self.iface.addDockWidget( Qt.BottomDockWidgetArea , self.dock )
+        self.dock.visibilityChanged.connect( self.dockVisibilityChanged )
 
-  def unload(self):
-    self.iface.removePluginMenu( self.name, self.action )
-    self.iface.removeToolBarIcon( self.action )
-    del self.action
-    del self.ctl
-  
-  @QtCore.pyqtSlot()
-  def run(self):
-    if self.iface.mapCanvas().layerCount() == 0:
-      msg = "Need layer(s) in map"
-      self.iface.messageBar().pushMessage( CatalogPLPlugin.pluginName, msg, QgsGui.QgsMessageBar.WARNING, 2 )
-      return
+    def unload(self):
+        self.iface.removeToolBarIcon( self.action )
+        self.iface.removePluginRasterMenu( self.name, self.action)
+        self.dock.writeSetting()
+        self.dock.close()
+        del self.dock
+        self.dock = None
+        del self.action
 
-    if not self.ctl.isHostLive:
-      self.ctl.hostLive()
-      if not self.ctl.isHostLive:
-        return
+    @pyqtSlot(bool)
+    def run(self, checked):
+        if self.dock.isVisible():
+            self.dock.hide()
+        else:
+            self.dock.show()
 
-    if not self.ctl.hasRegisterKey:
-      self.ctl.registerKey()
-      if not self.ctl.hasRegisterKey:
-        return
-
-    self.ctl.createLayerScenes()
-
-  @QtCore.pyqtSlot()
-  def config(self):
-    self.ctl.settingImages()
-
-  @QtCore.pyqtSlot()
-  def clearKey(self):
-    self.ctl.clearKey()
-
-  @QtCore.pyqtSlot()
-  def clipboardKey(self):
-    self.ctl.clipboardKey()
+    @pyqtSlot(bool)
+    def dockVisibilityChanged(self, visible):
+        self.action.setChecked( visible )

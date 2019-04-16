@@ -6,21 +6,19 @@
 
 # Catalog Planet Lab Plugin QGIS
 
-This plugin lets you get images from the Planet Labs API(Version 1),
-by performing searches for images that intersect with the extent of the map window.
-It is a product from Planet Explorers program (https://www.planet.com/explorers/),
-it is not an official Planet Labs's plugin.
+This plugin lets you get images from the Planet Labs API(Version 1), by performing searches for images that intersect with the extent of the map window.
+It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
 You need a key from Planet Labs in order to use this plugin.
 This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
-With this plugin, you can download full images(Analytic, UDM, ...), thumbnail images or
-add TMS images.
-See presentation: https://www.slideshare.net/LuizMotta3/catalog-planet-labs-plugin-for-qgis-v1
-Tested with QGIS 2.18.13
+With this plugin, you can download full images(type analytic) and view the XYZ Tiles services.
+
 
 ## Author
 Luiz Motta
 
 ## Changelog
+- 2019-03-19
+Migrated to QGIS 3.4
 - 2017-12-20
 Fixed error ltgRoot in downloadImages(catalogpl.py).
 - 2017-11-12
@@ -57,4 +55,4 @@ Add TMS for download
 Add feature for download images and thumbnails
 Add metadata in table and refactoring codes.
 - 2015-04-26:
-Create plugin.
+Create plugin. 
