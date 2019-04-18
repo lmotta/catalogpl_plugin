@@ -29,14 +29,16 @@ def getFunctionPopulateForm(pluginName):
 
     :param pluginName: Name of plugin
     """
+    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()
+    getPopulateForm = lambda plugin: plugin.dock.pl.populateForm # class_instance.py: _init_()
     plugins = {}
     for name, obj in QgsUtils.plugins.items():
         plugins[ name ] = obj
     if not pluginName in plugins:
         return { 'isOk': False, 'message': "Missing {name} Plugin.".format(name=pluginName) }
-    if plugins [pluginName ].dock is None:
+    if getInstanceInPlugin( plugins[ pluginName ] ) is None:
         return { 'isOk': False, 'message': "Run the {name} Plugin.".format(name=pluginName) }
-    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.populateForm }
+    return { 'isOk': True, 'function': getPopulateForm( plugins[ pluginName ] ) }
 
 populateForm = None
 

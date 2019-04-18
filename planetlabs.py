@@ -44,7 +44,7 @@ from qgis.core import (
     Qgis, QgsProject,
     QgsCoordinateReferenceSystem, QgsCoordinateTransform,
     QgsFeatureRequest,
-    QgsVectorLayer, QgsRasterLayer,
+    QgsVectorLayer, QgsRasterLayer, QgsMapLayer,
     QgsFeature, QgsGeometry,
     QgsMessageLog
 )
@@ -829,6 +829,10 @@ class PlanetLabs(QObject):
                 ltg = self.layerTreeRoot.addGroup( name )
             return ltg
 
+        def getRasterSources():
+            it = filter( lambda ltl: ltl.layer().type() == QgsMapLayer.RasterLayer, ltgDonwload.findLayers() )
+            return [ ltl.layer().source() for ltl in it ]
+
         def addLayer(fileName, item_id):
             layer = QgsRasterLayer( fileName, item_id )
             self.project.addMapLayer( layer, addToLegend=False )
@@ -869,6 +873,7 @@ class PlanetLabs(QObject):
         item_type = self.catalog.customProperty('item_type')
         ltgDonwload = getGroup( item_type )
         ltgDonwload.setItemVisibilityChecked( False )
+        sourcesRaster = getRasterSources()
         request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
         request = request.setSubsetOfAttributes( ['item_id', 'meta_json'], self.catalog.fields() )
         totalData = self.catalog.featureCount()
@@ -895,7 +900,8 @@ class PlanetLabs(QObject):
             fileName = os.path.join( downloadDir, fileName )
             info = QFileInfo( fileName )
             if info.exists():
-                addLayer( fileName, item_id )
+                if not fileName in sourcesRaster:
+                    addLayer( fileName, item_id )
                 continue
             meta_json = json.loads( feat['meta_json'] )
             if not 'assets_status' in meta_json:
@@ -1116,8 +1122,7 @@ class PlanetLabs(QObject):
         if self.response['isOk']:
             if not existsCatalog:
                 self.project.addMapLayer( self.catalog, addToLegend=False )
-                root = self.project.layerTreeRoot()
-                root.insertLayer( 0, self.catalog ).setCustomProperty("showFeatureCount", True)
+                self.layerTreeRoot.insertLayer( 0, self.catalog ).setCustomProperty("showFeatureCount", True)
             else:
                 self.catalog.setName( getNameCatalog() )
                 self.catalog.triggerRepaint()
@@ -1212,7 +1217,7 @@ class PlanetLabs(QObject):
         self.currentProcess.emit('API key')
         self.apiPL.setKey( password, self._responseFinished )
         if not self.response['isOk']:
-            self.message.emit( Qgis.Critical, 'Key not valid.', [] )
+            self.message.emit( Qgis.Critical, self.response['message'], [] )
             return
         self.message.emit( Qgis.Info, 'Key is valid', [] )
         self.visiblePages.emit( True)

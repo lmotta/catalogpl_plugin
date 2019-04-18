@@ -1,14 +1,14 @@
 <!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
-<qgis maxScale="0" simplifyDrawingTol="1" version="3.4.6-Madeira" labelsEnabled="0" simplifyMaxScale="1" simplifyAlgorithm="0" simplifyDrawingHints="1" simplifyLocal="1" readOnly="0" styleCategories="AllStyleCategories" hasScaleBasedVisibilityFlag="0" minScale="1e+8">
+<qgis labelsEnabled="0" simplifyAlgorithm="0" version="3.4.6-Madeira" hasScaleBasedVisibilityFlag="0" maxScale="0" simplifyDrawingHints="1" simplifyMaxScale="1" minScale="1e+8" styleCategories="AllStyleCategories" simplifyDrawingTol="1" simplifyLocal="1" readOnly="0">
   <flags>
     <Identifiable>1</Identifiable>
     <Removable>1</Removable>
     <Searchable>1</Searchable>
   </flags>
-  <renderer-v2 symbollevels="0" enableorderby="0" forceraster="0" type="singleSymbol">
+  <renderer-v2 type="singleSymbol" enableorderby="0" forceraster="0" symbollevels="0">
     <symbols>
-      <symbol name="0" clip_to_extent="1" force_rhr="0" alpha="0.344" type="fill">
-        <layer pass="0" class="SimpleFill" enabled="1" locked="0">
+      <symbol type="fill" force_rhr="0" name="0" clip_to_extent="1" alpha="0.344">
+        <layer enabled="1" locked="0" pass="0" class="SimpleFill">
           <prop k="border_width_map_unit_scale" v="3x:0,0,0,0,0,0"/>
           <prop k="color" v="60,175,213,255"/>
           <prop k="joinstyle" v="bevel"/>
@@ -22,9 +22,9 @@
           <prop k="style" v="solid"/>
           <data_defined_properties>
             <Option type="Map">
-              <Option name="name" type="QString" value=""/>
+              <Option type="QString" name="name" value=""/>
               <Option name="properties"/>
-              <Option name="type" type="QString" value="collection"/>
+              <Option type="QString" name="type" value="collection"/>
             </Option>
           </data_defined_properties>
         </layer>
@@ -34,11 +34,11 @@
     <sizescale/>
   </renderer-v2>
   <customproperties>
-    <property key="date1" value="2018-03-01"/>
-    <property key="date2" value="2019-04-01"/>
+    <property key="date1" value="2019-04-15"/>
+    <property key="date2" value="2019-04-17"/>
     <property key="dualview/previewExpressions" value="item_id"/>
     <property key="embeddedWidgets/count" value="0"/>
-    <property key="item_type" value="SkySatScene"/>
+    <property key="item_type" value="PSScene4Band"/>
     <property key="variableNames"/>
     <property key="variableValues"/>
   </customproperties>
@@ -46,17 +46,17 @@
   <featureBlendMode>0</featureBlendMode>
   <layerOpacity>1</layerOpacity>
   <SingleCategoryDiagramRenderer diagramType="Histogram" attributeLegend="1">
-    <DiagramCategory lineSizeScale="3x:0,0,0,0,0,0" minimumSize="0" enabled="0" backgroundColor="#ffffff" sizeScale="3x:0,0,0,0,0,0" labelPlacementMethod="XHeight" barWidth="5" opacity="1" diagramOrientation="Up" height="15" width="15" rotationOffset="270" backgroundAlpha="255" sizeType="MM" lineSizeType="MM" scaleBasedVisibility="0" minScaleDenominator="0" maxScaleDenominator="1e+8" penColor="#000000" penWidth="0" scaleDependency="Area" penAlpha="255">
+    <DiagramCategory backgroundAlpha="255" sizeType="MM" minScaleDenominator="0" lineSizeScale="3x:0,0,0,0,0,0" height="15" width="15" maxScaleDenominator="1e+8" minimumSize="0" penWidth="0" penAlpha="255" scaleDependency="Area" backgroundColor="#ffffff" opacity="1" sizeScale="3x:0,0,0,0,0,0" scaleBasedVisibility="0" rotationOffset="270" penColor="#000000" barWidth="5" enabled="0" diagramOrientation="Up" labelPlacementMethod="XHeight" lineSizeType="MM">
       <fontProperties description="Noto Sans,10,-1,0,50,0,0,0,0,0,Regular" style="Regular"/>
       <attribute field="" label="" color="#000000"/>
     </DiagramCategory>
   </SingleCategoryDiagramRenderer>
-  <DiagramLayerSettings priority="0" obstacle="0" dist="0" zIndex="0" placement="1" linePlacementFlags="18" showAll="1">
+  <DiagramLayerSettings obstacle="0" priority="0" showAll="1" placement="1" dist="0" zIndex="0" linePlacementFlags="18">
     <properties>
       <Option type="Map">
-        <Option name="name" type="QString" value=""/>
+        <Option type="QString" name="name" value=""/>
         <Option name="properties"/>
-        <Option name="type" type="QString" value="collection"/>
+        <Option type="QString" name="type" value="collection"/>
       </Option>
     </properties>
   </DiagramLayerSettings>
@@ -76,8 +76,8 @@
       <editWidget type="TextEdit">
         <config>
           <Option type="Map">
-            <Option name="IsMultiline" type="bool" value="false"/>
-            <Option name="UseHtml" type="bool" value="false"/>
+            <Option type="bool" name="IsMultiline" value="false"/>
+            <Option type="bool" name="UseHtml" value="false"/>
           </Option>
         </config>
       </editWidget>
@@ -86,8 +86,8 @@
       <editWidget type="TextEdit">
         <config>
           <Option type="Map">
-            <Option name="IsMultiline" type="bool" value="false"/>
-            <Option name="UseHtml" type="bool" value="false"/>
+            <Option type="bool" name="IsMultiline" value="false"/>
+            <Option type="bool" name="UseHtml" value="false"/>
           </Option>
         </config>
       </editWidget>
@@ -108,27 +108,27 @@
     </field>
   </fieldConfiguration>
   <aliases>
-    <alias name="" field="item_type" index="0"/>
-    <alias name="" field="item_id" index="1"/>
-    <alias name="" field="date" index="2"/>
-    <alias name="" field="meta_json" index="3"/>
-    <alias name="" field="meta_jsize" index="4"/>
+    <alias field="item_type" name="" index="0"/>
+    <alias field="item_id" name="" index="1"/>
+    <alias field="date" name="" index="2"/>
+    <alias field="meta_json" name="" index="3"/>
+    <alias field="meta_jsize" name="" index="4"/>
   </aliases>
   <excludeAttributesWMS/>
   <excludeAttributesWFS/>
   <defaults>
-    <default field="item_type" applyOnUpdate="0" expression=""/>
-    <default field="item_id" applyOnUpdate="0" expression=""/>
-    <default field="date" applyOnUpdate="0" expression=""/>
-    <default field="meta_json" applyOnUpdate="0" expression=""/>
-    <default field="meta_jsize" applyOnUpdate="0" expression=""/>
+    <default applyOnUpdate="0" field="item_type" expression=""/>
+    <default applyOnUpdate="0" field="item_id" expression=""/>
+    <default applyOnUpdate="0" field="date" expression=""/>
+    <default applyOnUpdate="0" field="meta_json" expression=""/>
+    <default applyOnUpdate="0" field="meta_jsize" expression=""/>
   </defaults>
   <constraints>
-    <constraint notnull_strength="0" constraints="0" field="item_type" exp_strength="0" unique_strength="0"/>
-    <constraint notnull_strength="0" constraints="0" field="item_id" exp_strength="0" unique_strength="0"/>
-    <constraint notnull_strength="0" constraints="0" field="date" exp_strength="0" unique_strength="0"/>
-    <constraint notnull_strength="0" constraints="0" field="meta_json" exp_strength="0" unique_strength="0"/>
-    <constraint notnull_strength="0" constraints="0" field="meta_jsize" exp_strength="0" unique_strength="0"/>
+    <constraint notnull_strength="0" field="item_type" constraints="0" unique_strength="0" exp_strength="0"/>
+    <constraint notnull_strength="0" field="item_id" constraints="0" unique_strength="0" exp_strength="0"/>
+    <constraint notnull_strength="0" field="date" constraints="0" unique_strength="0" exp_strength="0"/>
+    <constraint notnull_strength="0" field="meta_json" constraints="0" unique_strength="0" exp_strength="0"/>
+    <constraint notnull_strength="0" field="meta_jsize" constraints="0" unique_strength="0" exp_strength="0"/>
   </constraints>
   <constraintExpressions>
     <constraint field="item_type" exp="" desc=""/>
@@ -140,33 +140,33 @@
   <expressionfields/>
   <attributeactions>
     <defaultAction key="Canvas" value="{00000000-0000-0000-0000-000000000000}"/>
-    <actionsetting name="Highlight" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'highlight'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{b803e4af-161c-489d-891b-5ec896afa933}" type="1" capture="0" icon="">
+    <actionsetting id="{9955ade2-4aa6-4229-a26f-eeab7164652d}" type="1" shortTitle="" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'highlight'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Highlight" notificationMessage="" capture="0" icon="">
       <actionScope id="Feature"/>
     </actionsetting>
-    <actionsetting name="Zoom" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'zoom'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{f9551787-fea0-4f4b-8313-53eb4fb16ff6}" type="1" capture="0" icon="">
+    <actionsetting id="{5ed235fb-0dae-4bec-b727-033d0f365c20}" type="1" shortTitle="" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'zoom'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Zoom" notificationMessage="" capture="0" icon="">
       <actionScope id="Feature"/>
     </actionsetting>
-    <actionsetting name="Add XYZ tiles" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'addxyztiles'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="Add XYZ tiles" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{ce059ffb-ec58-4714-b170-30efc33ce1dd}" type="1" capture="0" icon="">
+    <actionsetting id="{c2dc7c97-1212-41b9-a273-51143f72a025}" type="1" shortTitle="Add XYZ tiles" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'addxyztiles'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Add XYZ tiles" notificationMessage="" capture="0" icon="">
       <actionScope id="Layer"/>
     </actionsetting>
-    <actionsetting name="Update assets status" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'updateAssetsStatus'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="Update assets status" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{c6c754f7-10e1-4499-97c6-b98e66e91e1b}" type="1" capture="0" icon="">
+    <actionsetting id="{f5f6023c-4533-4886-8e33-ff1d64e87a68}" type="1" shortTitle="Update assets status" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'updateAssetsStatus'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Update assets status" notificationMessage="" capture="0" icon="">
       <actionScope id="Layer"/>
     </actionsetting>
-    <actionsetting name="Active assets" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'activeAssets'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="Active assets" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{bca09050-fc75-4a9b-a9c9-670300b6bf9d}" type="1" capture="0" icon="">
+    <actionsetting id="{f55b110f-3f41-4c0d-9657-5f66d54eca50}" type="1" shortTitle="Active assets" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'activeAssets'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Active assets" notificationMessage="" capture="0" icon="">
       <actionScope id="Layer"/>
     </actionsetting>
-    <actionsetting name="Downloads images" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if plugins [pluginName ].dock is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': plugins[ pluginName ].dock.pl.actionsForm }&#xa;&#xa;nameAction = 'downloadImages'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" shortTitle="Downloads images" notificationMessage="" isEnabledOnlyWhenEditable="0" id="{0730750d-c148-4f83-9a51-9df5428aa3e0}" type="1" capture="0" icon="">
+    <actionsetting id="{12c5a841-ae07-4fb1-aa47-088c9a380765}" type="1" shortTitle="Downloads images" action="from qgis import utils as QgsUtils&#xa;&#xa;def getFunctionActionsForm(pluginName):&#xa;    &quot;&quot;&quot;&#xa;    Function from Plugin for actions Form&#xa;&#xa;    :param pluginName: Name of plugin&#xa;    &quot;&quot;&quot;&#xa;    getInstanceInPlugin = lambda plugin: plugin.dock # _init_.py: initGui()&#xa;    getActionsForm = lambda plugin: plugin.dock.pl.actionsForm # class_instance.py: _init_()&#xa;    plugins = {}&#xa;    for name, obj in QgsUtils.plugins.items():&#xa;        plugins[ name ] = obj&#xa;    if not pluginName in plugins:&#xa;        return { 'isOk': False, 'message': &quot;Missing {name} Plugin.&quot;.format(name=pluginName) }&#xa;    if getInstanceInPlugin( plugins[ pluginName ] ) is None:&#xa;        return { 'isOk': False, 'message': &quot;Run the {name} Plugin.&quot;.format(name=pluginName) }&#xa;    return { 'isOk': True, 'function': getActionsForm( plugins[ pluginName ] ) }&#xa;&#xa;nameAction = 'downloadImages'&#xa;title = &quot;Action Planet&quot;&#xa;msgBar =  QgsUtils.iface.messageBar()&#xa;r = getFunctionActionsForm('catalogpl_plugin')&#xa;if r['isOk']:&#xa;    actionsForm = r['function']&#xa;    r = actionsForm( nameAction, [% $id %] )&#xa;    if not r['isOk']:&#xa;        msgBar.pushCritical( title, r['message'] )&#xa;else:&#xa;    msgBar.pushCritical( title, r['message'] )&#xa;" isEnabledOnlyWhenEditable="0" name="Downloads images" notificationMessage="" capture="0" icon="">
       <actionScope id="Layer"/>
     </actionsetting>
   </attributeactions>
-  <attributetableconfig actionWidgetStyle="dropDown" sortExpression="" sortOrder="0">
+  <attributetableconfig actionWidgetStyle="dropDown" sortOrder="0" sortExpression="">
     <columns>
-      <column name="item_type" width="-1" type="field" hidden="0"/>
-      <column name="item_id" width="-1" type="field" hidden="0"/>
-      <column name="date" width="-1" type="field" hidden="0"/>
-      <column name="meta_json" width="-1" type="field" hidden="0"/>
-      <column name="meta_jsize" width="-1" type="field" hidden="0"/>
-      <column width="-1" type="actions" hidden="1"/>
+      <column type="field" name="item_type" width="-1" hidden="0"/>
+      <column type="field" name="item_id" width="-1" hidden="0"/>
+      <column type="field" name="date" width="-1" hidden="0"/>
+      <column type="field" name="meta_json" width="-1" hidden="0"/>
+      <column type="field" name="meta_jsize" width="-1" hidden="0"/>
+      <column type="actions" width="-1" hidden="1"/>
     </columns>
   </attributetableconfig>
   <conditionalstyles>
@@ -195,7 +195,7 @@ def my_form_open(dialog, layer, feature):
 	control = dialog.findChild(QWidget, "MyLineEdit")
 ]]></editforminitcode>
   <featformsuppress>0</featformsuppress>
-  <editorlayout>uifilelayout</editorlayout>
+  <editorlayout>generatedlayout</editorlayout>
   <editable/>
   <labelOnTop/>
   <widgets/>

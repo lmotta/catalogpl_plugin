@@ -30,7 +30,7 @@ from qgis.PyQt.QtCore import (
     QUrl
 )
 from qgis.PyQt.QtGui import QPixmap
-from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply, QSslSocket
 
 
 class AccessSite(QObject):
@@ -55,23 +55,9 @@ class AccessSite(QObject):
     def __init__(self):
         super().__init__()
         self.isKill = None
-        self.triedAuthentication = None
+        self.responseAllFinished = None
         self.nam = QNetworkAccessManager(self)
-        self._connect()
-        # Input by self.run
-        self.credential = None
-
-    def _connect(self, isConnect=True):
-        ss = [
-            { 'signal': self.nam.finished, 'slot': self.replyFinished },
-            { 'signal': self.nam.authenticationRequired, 'slot': self.authenticationRequired }
-        ]
-        if isConnect:
-            for item in ss:
-                item['signal'].connect( item['slot'] )  
-        else:
-            for item in ss:
-                item['signal'].disconnect( item['slot'] )
+        self.nam.finished.connect( self.replyFinished )
 
     def _connectReply(self, reply, isConnect=True):
         ss = [
@@ -90,12 +76,16 @@ class AccessSite(QObject):
                 item['signal'].disconnect( item['slot'] )
 
     def _closeReply(self, reply):
-        if not self.responseAllFinished:
-            self._connectReply( reply, False )
-            self.nam.finished.disconnect( self.replyFinished ) # reply.close() call replyFinished
+        def connect(isConnect=True):
+            f_nam = self.nam.finished.connect if isConnect else self.nam.finished.disconnect
+            f_nam( self.replyFinished )
+            if not self.responseAllFinished:
+                self._connectReply( reply, isConnect )
+
+        # reply.close() call replyFinished
+        connect(False)
         reply.close()
-        if not self.responseAllFinished:
-            self.nam.finished.connect( self.replyFinished )
+        connect()
         reply.deleteLater()
 
     def _redirectionReply(self, reply, url):
@@ -138,27 +128,6 @@ class AccessSite(QObject):
             if 'errorCode' in response:
                 del response['errorCode']
 
-    def _run(self, url, credential=None, responseAllFinished=True, json_request=None):
-        self.isKill, self.triedAuthentication = False, False
-        if credential is None:
-            credential = {'user': '', 'password': ''}
-        self.credential, self.responseAllFinished = credential, responseAllFinished
-        req = QNetworkRequest( url )
-        if json_request is None:
-            reply = self.nam.get( req )
-        else:
-            req.setHeader( QNetworkRequest.ContentTypeHeader, "application/json" )
-            data = QByteArray()
-            data.append( json.dumps( json_request ) )
-            reply = self.nam.post( req, data )
-        if reply is None:
-            response = { 'isOk': False, 'message': "Network error", 'errorCode': -1 }
-            self.finished.emit( response )
-            return
-        self.abortReply.connect( reply.abort )
-        if not responseAllFinished:
-            self._connectReply( reply )
-
     def requestUrl(self, paramsAccess, addFinishedResponse, setFinished):
         @pyqtSlot(dict)
         def finished( response):
@@ -172,16 +141,43 @@ class AccessSite(QObject):
                 self._clearResponse( response )
             setFinished( response )
         
+        def run():
+            def sslVerifyNone(req):
+                conf = req.sslConfiguration()
+                conf.setPeerVerifyMode( QSslSocket.VerifyNone )
+                req.setSslConfiguration( conf )
+
+            req = QNetworkRequest( url )
+            sslVerifyNone( req ) # Need for Windows, error 'Handshake failed'
+            if json_request is None:
+                reply = self.nam.get( req )
+            else:
+                req.setHeader( QNetworkRequest.ContentTypeHeader, "application/json" )
+                data = QByteArray()
+                data.append( json.dumps( json_request ) )
+                reply = self.nam.post( req, data )
+            if reply is None:
+                response = { 'isOk': False, 'message': "Network error", 'errorCode': -1 }
+                self.finished.emit( response )
+                return
+            self.abortReply.connect( reply.abort )
+            if not self.responseAllFinished:
+                self._connectReply( reply )
+
         loop = QEventLoop()
         self.finished.connect( finished )
-        credential = None if not 'credential' in paramsAccess else paramsAccess['credential']
-        responseAllFinished = True
+        json_request = None if not 'json_request' in paramsAccess else paramsAccess['json_request']
+        self.responseAllFinished = True
         if 'notResponseAllFinished' in paramsAccess:
-            responseAllFinished = False
+            self.responseAllFinished = False
             self.send_data.connect( paramsAccess['notResponseAllFinished']['writePackageImage'] )
             self.status_download.connect( paramsAccess['notResponseAllFinished']['progressPackageImage'] )     
-        json_request = None if not 'json_request' in paramsAccess else paramsAccess['json_request']
-        self._run( paramsAccess['url'], credential, responseAllFinished, json_request )
+        url = paramsAccess['url']
+        if 'credential' in paramsAccess:
+            userInfo = "{user}:{pwd}".format( user=paramsAccess['credential']['user'], pwd=paramsAccess['credential']['password'] )
+            url.setUserInfo( userInfo )
+        self.isKill = False
+        run()
         loop.exec_()
 
     def isHostLive(self, url, setFinished):
@@ -240,15 +236,6 @@ class AccessSite(QObject):
             response['data'] = reply.readAll()
         self._closeReply( reply )
         self.finished.emit( response )
-
-    @pyqtSlot('QNetworkReply*', 'QAuthenticator*')
-    def authenticationRequired (self, reply, authenticator):
-        if not self.triedAuthentication: 
-            authenticator.setUser( self.credential['user'] ) 
-            authenticator.setPassword( self.credential['password'] )
-            self.triedAuthentication = True
-        else:
-            self._emitErrorCodeAttribute(401, reply )
 
     @pyqtSlot()
     def readyRead(self):

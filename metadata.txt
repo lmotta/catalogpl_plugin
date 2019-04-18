@@ -5,7 +5,7 @@ about:This plugin lets you get images from the Planet Labs API(Version 1), by pe
   It is a product from Planet Explorers program (https://www.planet.com/explorers/), it is not an official Planet Labs's plugin.
   You need a key from Planet Labs in order to use this plugin.
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
-  With this plugin, you can download full images(type analytic) and view the XYZ Tiles services.
+  With this plugin, you can download full images(type analytic) and view the XYZ Tiles services(Montly mosaics and images).
 
 version:2.0
 qgisMinimumVersion:3.4

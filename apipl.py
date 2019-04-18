@@ -126,6 +126,9 @@ class API_PlanetLabs(QObject):
         def addFinishedResponse(response):
             if response['isOk']:
                 API_PlanetLabs.validKey = key
+            else:
+                if response['errorCode'] == 204: # Host requires authentication
+                    response['message'] = 'Invalid Key'
             return response
 
         p = {
