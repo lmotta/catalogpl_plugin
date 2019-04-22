@@ -39,6 +39,7 @@ from qgis.PyQt.QtWidgets import (
   QSpacerItem, QSizePolicy,
   QFileDialog, QDialog
 )
+from qgis.PyQt.QtNetwork import QNetworkReply
 
 from qgis.core import (
     Qgis, QgsProject,
@@ -696,10 +697,22 @@ class PlanetLabs(QObject):
             layer.setCustomProperty('field_id', { 'name': 'item_id', 'value': item_id } ) # Field'type = String
             layer.setCustomProperty('wkt_geom', geom.asWkt() )
             self.menuXYZTiles.setLayer( layer )
-
+        
         def getXYZTiles(item_type, item_id):
-            url = API_PlanetLabs.urlYXZImage.format( item_type=item_type, item_id=item_id )
+            url = self.apiPL.urlYXZImage.format( item_type=item_type, item_id=item_id )
             return "type=xyz&url={url}&username={username}&zmax=19&zmin=0".format( url=url, username=self.apiPL.validKey )
+
+        def checkValidKey(item_type, iterator):
+            feat = QgsFeature()
+            isOk = iterator.nextFeature( feat )
+            iterator.rewind()
+            if not isOk:
+                return { 'isOk': False, 'message': 'Error read feature' }
+            self.apiPL.checkValidKeyImage( item_type,  feat['item_id'], self._responseFinished )
+            if not self.response['isOk']:
+                return { 'isOk': False, 'message': self.response['message'] }
+            return { 'isOk': True }
+
 
         self.currentProcess.emit('Add XYZ tiles images')
         item_type = self.catalog.customProperty('item_type')
@@ -711,6 +724,11 @@ class PlanetLabs(QObject):
             idxs = self.catalog.selectedFeatureIds()
             request = request.setFilterFids( idxs )
         it = self.catalog.getFeatures( request )
+        r = checkValidKey(item_type, it )
+        if not r['isOk']:
+            self.message.emit( Qgis.Critical, r['message'], [] )
+            return
+        
         ltg = getGroup()
         ltg.setItemVisibilityChecked( False )
         dates = {}
@@ -1174,18 +1192,23 @@ class PlanetLabs(QObject):
                 ltg.removeAllChildren()
             return ltg
 
-        def addLayer(year, month, group, lstMissing):
-            self.apiPL.getUrlMonthly( year, month, self._responseFinished )
-            name = "{year}_{month:02d}".format( year=year, month=month )
-            if not self.response['isOk']:
-                lstMissing.append( name )
-                return
-            self.message.emit( Qgis.Info, name, [] )
+        def addLayer(name, group):
             url = self.response['url']
             url = "type=xyz&url={url}&username={username}&zmax=19&zmin=0".format( url=url, username=self.apiPL.validKey )
             layer = QgsRasterLayer( url, name, 'wms')
             self.project.addMapLayer( layer, addToLegend=False )
             group.addLayer( layer ).setItemVisibilityChecked( False )
+
+        def outFunction(message):
+            self.message.emit( Qgis.Critical, message, [] )
+            self.changeButtonApply.emit('Add')
+
+        def checkValidKey(vdate):
+            year, month = vdate.year(), vdate.month()
+            self.apiPL.getUrlMonthly( year, month, self._responseFinished )
+            if not self.response['isOk'] and self.response['errorCode'] == QNetworkReply.AuthenticationRequiredError:
+                return {'isOk': False, 'message': 'Insufficent credentials for this key' }
+            return {'isOk': True }
 
         self.currentProcess.emit('Add XYZ tiles mosaics')
         self.apiPL.access.isKill = False
@@ -1194,16 +1217,24 @@ class PlanetLabs(QObject):
         lstMissing = []
         vdate_ini = QDate( date1.year(),  date1.month(), 1 )
         vdate = QDate( date2.year(),  date2.month(), 1 )
-        while( vdate > vdate_ini ):
+        r = checkValidKey( vdate )
+        if not r['isOk']:
+            outFunction( r['message'] )
+            return
+        while( vdate > vdate_ini.addMonths(-1) ):
             if self.apiPL.access.isKill:
                 self.layerTreeRoot.removeChildNode( ltg )
-                self.message.emit( Qgis.Critical, 'Canceled by user', [] )
-                self.changeButtonApply.emit('Add')
+                outFunction('Canceled by user')
                 return
-            y, m = vdate.year(), vdate.month()
-            addLayer( y, m, ltg, lstMissing )
+            year, month = vdate.year(), vdate.month()
+            name = "{year}_{month:02d}".format( year=year, month=month )
+            self.apiPL.getUrlMonthly( year, month, self._responseFinished )
+            if not self.response['isOk']:
+                lstMissing.append( name )
+                continue
+            self.message.emit( Qgis.Info, name, [] )
+            addLayer( name, ltg )
             vdate = vdate.addMonths(-1)
-        addLayer( vdate_ini.year(), vdate_ini.month(), ltg, lstMissing )
         total = len( lstMissing )
         if total > 0:
             msg = "Missing mosaic(total {})".format( total )

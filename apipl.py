@@ -27,7 +27,7 @@ from qgis.PyQt.QtCore import (
     pyqtSignal, pyqtSlot,
     QUrl    
 )
-from qgis.PyQt.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
+from qgis.PyQt.QtNetwork import QNetworkReply
 
 from qgis.core import (
     QgsGeometry, QgsPointXY
@@ -218,16 +218,30 @@ class API_PlanetLabs(QObject):
         def addFinishedResponse(response):
             if not response['isOk']:
                 return response
-            if 'data' in response: # The user can quickly change a item
+            if 'data' in response:
                 del response['data']
                 response['url'] = self.urlYXZMosaicMonthly.format( year=year, month=month )
             return response
 
         url = self.urlYXZMosaicMonthly.format( year=year, month=month ).replace('%7Bz%7D/%7Bx%7D/%7By%7D','0/0/0')
         url = "{url}?api_key={key}".format( url=url, key=self.validKey )
-        p = {
-            'url': QUrl( url )
-        }
+        p = { 'url': QUrl( url ) }
+        self.access.requestUrl( p, addFinishedResponse, setFinished )
+
+    def checkValidKeyImage(self, item_type, item_id, setFinished):
+        def addFinishedResponse(response):
+            if response['isOk']:
+                del response['data']
+            elif response['errorCode'] == QNetworkReply.AuthenticationRequiredError:
+                response['message'] = 'Insufficent credentials for this key'
+                response['isOk'] = False
+            else:
+                response['isOk'] = True
+            return response
+
+        url = self.urlYXZImage.format( item_type=item_type, item_id=item_id ).replace('%7Bz%7D/%7Bx%7D/%7By%7D','0/0/0')
+        url = "{url}?api_key={key}".format( url=url, key=self.validKey )
+        p = { 'url': QUrl( url ) }
         self.access.requestUrl( p, addFinishedResponse, setFinished )
 
     @pyqtSlot()
