@@ -102,7 +102,7 @@ class AccessSite(QObject):
             self._connectReply( reply )
 
     def _emitErrorCodeAttribute(self, code, reply):
-        msg = 'Error network' if not code in self.ErrorCodeAttribute.keys() else AccessSite.ErrorCodeAttribute[ code ]
+        msg = 'Error network' if not code in self.ErrorCodeAttribute.keys() else self.ErrorCodeAttribute[ code ]
         response = { 'isOk': False, 'message': msg, 'errorCode': code }
         self._closeReply( reply )
         self.finished.emit( response )

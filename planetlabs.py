@@ -804,6 +804,12 @@ class PlanetLabs(QObject):
         self.hideProgressBar.emit()
 
     def activeAssets(self):
+        def exitsActivate(meta_json):
+            return 'assets_status' in meta_json and \
+                   'a_analytic' in meta_json['assets_status'] and \
+                   'activate' in meta_json['assets_status']['a_analytic']
+
+
         self.currentProcess.emit('Active assets')
         self.apiPL.access.isKill = False
         request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
@@ -824,7 +830,7 @@ class PlanetLabs(QObject):
                 self.message.emit( Qgis.Critical, 'Canceled by user', [] )
                 return
             meta_json = json.loads( feat['meta_json'] )
-            if not 'assets_status' in meta_json:
+            if not exitsActivate( meta_json ):
                 item_id_no_assets_status.append( feat['item_id'] )
                 continue
             url = meta_json['assets_status']['a_analytic']['activate']
@@ -833,7 +839,7 @@ class PlanetLabs(QObject):
             self.processingFeatures.emit( countData, totalData, int( countData / totalData * 100) )
         total = len( item_id_no_assets_status )
         if total > 0:
-            msg = "Missing 'assets_status' in metadata of features(total {}).".format( total )
+            msg = "Missing ['assets_status']['a_analytic']['activate'] in metadata of features(total {}).".format( total )
             self.message.emit( Qgis.Critical, msg, item_id_no_assets_status )
         else:
             self.message.emit( Qgis.Success, 'Finished OK', [] )
@@ -942,7 +948,7 @@ class PlanetLabs(QObject):
         else:
             total = len( item_id_no_active )
             if total > 0:
-                msg = "Status 'assets_status'.'a_analytic' is not 'active' in metadata of features(total {})".format( total )
+                msg = "Status 'assets_status'.'a_analytic' is not 'active' in metadata of features(total {}).".format( total )
                 self.message.emit( Qgis.Critical, msg, item_id_no_active )
             else:
                 total = len( item_id_error_download )
@@ -1212,8 +1218,6 @@ class PlanetLabs(QObject):
 
         self.currentProcess.emit('Add XYZ tiles mosaics')
         self.apiPL.access.isKill = False
-        ltg = getGroup()
-        ltg.setItemVisibilityChecked( False )
         lstMissing = []
         vdate_ini = QDate( date1.year(),  date1.month(), 1 )
         vdate = QDate( date2.year(),  date2.month(), 1 )
@@ -1221,6 +1225,8 @@ class PlanetLabs(QObject):
         if not r['isOk']:
             outFunction( r['message'] )
             return
+        ltg = getGroup()
+        ltg.setItemVisibilityChecked( False )
         while( vdate > vdate_ini.addMonths(-1) ):
             if self.apiPL.access.isKill:
                 self.layerTreeRoot.removeChildNode( ltg )
