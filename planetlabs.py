@@ -688,6 +688,8 @@ class PlanetLabs(QObject):
             ltg = self.layerTreeRoot.findGroup( name )
             if ltg is None:
                 ltg = self.layerTreeRoot.addGroup( name )
+            else:
+                ltg.removeAllChildren()
             return ltg
 
         def setCustomProperty(layer, item_type, item_id):
@@ -702,37 +704,38 @@ class PlanetLabs(QObject):
             url = self.apiPL.urlYXZImage.format( item_type=item_type, item_id=item_id )
             return "type=xyz&url={url}&username={username}&zmax=19&zmin=0".format( url=url, username=self.apiPL.validKey )
 
-        def checkValidKey(item_type, iterator):
-            feat = QgsFeature()
-            isOk = iterator.nextFeature( feat )
-            iterator.rewind()
-            if not isOk:
-                return { 'isOk': False, 'message': 'Error read feature' }
-            self.apiPL.checkValidKeyImage( item_type,  feat['item_id'], self._responseFinished )
-            if not self.response['isOk']:
-                return { 'isOk': False, 'message': self.response['message'] }
-            return { 'isOk': True }
-
-
         self.currentProcess.emit('Add XYZ tiles images')
+        self.apiPL.access.isKill = False
         item_type = self.catalog.customProperty('item_type')
         date1 = self.catalog.customProperty('date1')
         date2 = self.catalog.customProperty('date2')
         request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
         request = request.setSubsetOfAttributes( ['item_id', 'date'], self.catalog.fields() )
-        if self.catalog.selectedFeatureCount() > 0:
+        totalData = self.catalog.featureCount()
+        totalSelected = self.catalog.selectedFeatureCount()
+        if totalSelected > 0:
+            totalData = totalSelected
             idxs = self.catalog.selectedFeatureIds()
             request = request.setFilterFids( idxs )
+        self.showProgressBar.emit(False)
+        countData = 0
         it = self.catalog.getFeatures( request )
-        r = checkValidKey(item_type, it )
-        if not r['isOk']:
-            self.message.emit( Qgis.Critical, r['message'], [] )
-            return
-        
-        ltg = getGroup()
-        ltg.setItemVisibilityChecked( False )
+        messageInvalidKey = None
+        lstInvalidKey = []
         dates = {}
         for feat in it:
+            if self.apiPL.access.isKill:
+                self.hideProgressBar.emit()
+                self.message.emit( Qgis.Critical, 'Canceled by user', [] )
+                return
+            self.apiPL.checkValidKeyImage( item_type, feat['item_id'], self._responseFinished )
+            countData += 1
+            self.processingFeatures.emit( countData, totalData, int( countData / totalData * 100) )
+            if not self.response['isOk']:
+                if messageInvalidKey is None:
+                    messageInvalidKey = self.response['message']
+                lstInvalidKey.append( feat['item_id'] )
+                continue
             url = getXYZTiles( item_type, feat['item_id'] )
             layer = QgsRasterLayer( url, feat['item_id'], 'wms')
             setCustomProperty( layer, item_type, feat['item_id'] )
@@ -742,6 +745,14 @@ class PlanetLabs(QObject):
                 dates[ date ].append( layer )
             else:
                 dates[date] = [ layer ]
+        self.hideProgressBar.emit()
+        total = len( lstInvalidKey )
+        if total == totalData:
+            msg = "{message}(total = {total}).".format( message=messageInvalidKey,  total=total )
+            self.message.emit( Qgis.Critical, msg, lstInvalidKey )
+            return
+        ltg = getGroup()
+        ltg.setItemVisibilityChecked( False )
         for date in sorted( dates, reverse=True ):
             name = "{}(Total {})".format( date, len( dates[ date ] ) )
             ltgDate = ltg.addGroup( name )
@@ -750,7 +761,11 @@ class PlanetLabs(QObject):
             for layer in dates[ date ]:
                 ltgDate.addLayer( layer )
                 ltgDate.setItemVisibilityChecked( False )
-        self.message.emit( Qgis.Success, 'Finished OK', [] )
+        if total > 0:
+            msg = "{message}(total = {total}).".format( message=messageInvalidKey,  total=total )
+            self.message.emit( Qgis.Warning, msg, lstInvalidKey )
+        else:
+            self.message.emit( Qgis.Success, 'Finished OK', [] )
 
     def updateAssetsStatus(self):
         self.currentProcess.emit('Update assets status')
