@@ -24,7 +24,7 @@ import json, os
 from qgis.PyQt.QtCore import (
     QObject, Qt,
     QSettings,
-    QDate, QDateTime,
+    QDate, QDateTime, QTime,
     QDir, QFile, QFileInfo, QIODevice,
     pyqtSlot, pyqtSignal
 )
@@ -1085,12 +1085,16 @@ class PlanetLabs(QObject):
             geom = QgsGeometry.fromRect( rectCanvas )
             return json.loads( geom.asJson() )
         
-        def getDateRangeFilter(date1, date2):
+        def getDateRangeFilter(dateGte, dateLte):
             def getStringDate(date):
-                return "{}.000Z".format( QDateTime( date ).toString( Qt.ISODate ) )
+                return "{}Z".format( QDateTime( date ).toString( Qt.ISODate ) )
+
+            dtGte = QDateTime( dateGte )
+            dtLte = QDateTime( dateLte )
+            dtLte.setTime( QTime(23,59,59) )
             return  {
-                "gte": getStringDate( date1 ),
-                "lte": getStringDate( date2 )
+                "gte": "{}Z".format( dtGte.toString( Qt.ISODate ) ),
+                "lte": "{}Z".format( dtLte.toString( Qt.ISODate ) )
             }
 
         def finished(response):
