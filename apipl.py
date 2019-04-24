@@ -37,6 +37,7 @@ from .accesssite import AccessSite
 
 class API_PlanetLabs(QObject):
     validKey = None
+    statusNoCredential = '*None*'
     urlRoot = "https://api.planet.com"
     urlQuickSearch = "https://api.planet.com/data/v1/quick-search"
     urlYXZImage = "https://tiles.planet.com/data/v1/{item_type}/{item_id}/%7Bz%7D/%7Bx%7D/%7By%7D.png"
@@ -163,7 +164,7 @@ class API_PlanetLabs(QObject):
                 response['assets_status'][ key ] = {}
                 r = response['assets_status'][ key ]
                 if not asset in data:
-                    r['status'] = "*None*"
+                    r['status'] = self.statusNoCredential
                     return
                 for k in ('status', 'location'):
                     if k in data[ asset ]:

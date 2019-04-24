@@ -543,8 +543,12 @@ class DockWidgetPlanetLabs(QDockWidget):
             return
         self.msgBar.popWidget()
         f( self.currentProcess, message )
-        if len(itemsLog) > 0:
-            msg = "{}. Items: {}".format( message, ','.join( itemsLog ) )
+        if len( itemsLog ) > 0:
+            itemsMsg = []
+            for item in itemsLog:
+                msg = "{}: {}".format( item['label'], ','.join( item['items'] ) )
+                itemsMsg.append( msg )
+            msg = '\n'.join( itemsMsg )
             QgsMessageLog.logMessage( msg, self.titleLog, Qgis.Warning )
 
     @pyqtSlot()
@@ -608,8 +612,6 @@ class PlanetLabs(QObject):
         self.menuXYZTiles = MenuXYZTiles( self.pluginName )
         funcActions = {
             'addXYZtiles': self.addXYZtiles,
-            'updateAssetsStatus': self.updateAssetsStatus,
-            'activeAssets': self.activeAssets,
             'downloadImages': self.downloadImages
         }
         self.menuCatalog = MenuCatalogPlanet( self.pluginName, funcActions)
@@ -748,8 +750,8 @@ class PlanetLabs(QObject):
         self.hideProgressBar.emit()
         total = len( lstInvalidKey )
         if total == totalData:
-            msg = "{message}(total = {total}).".format( message=messageInvalidKey,  total=total )
-            self.message.emit( Qgis.Critical, msg, lstInvalidKey )
+            msg = "{message}({total}).".format( message=messageInvalidKey,  total=total )
+            self.message.emit( Qgis.Critical, msg, [ {'label': messageInvalidKey, 'items': lstInvalidKey } ] )
             return
         ltg = getGroup()
         ltg.setItemVisibilityChecked( False )
@@ -763,102 +765,9 @@ class PlanetLabs(QObject):
                 ltgDate.setItemVisibilityChecked( False )
         if total > 0:
             msg = "{message}(total = {total}).".format( message=messageInvalidKey,  total=total )
-            self.message.emit( Qgis.Warning, msg, lstInvalidKey )
+            self.message.emit( Qgis.Warning, msg, [ {'label': messageInvalidKey, 'items': lstInvalidKey } ] )
         else:
             self.message.emit( Qgis.Success, 'Finished OK', [] )
-
-    def updateAssetsStatus(self):
-        self.currentProcess.emit('Update assets status')
-        self.apiPL.access.isKill = False
-        request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
-        request = request.setSubsetOfAttributes( ['meta_json'], self.catalog.fields() )
-        totalData = self.catalog.featureCount()
-        totalSelected = self.catalog.selectedFeatureCount()
-        if totalSelected > 0:
-            totalData = totalSelected
-            idxs = self.catalog.selectedFeatureIds()
-            request = request.setFilterFids( idxs )
-        self.showProgressBar.emit(False)
-        countData = 0
-        idMetaJson = self.catalog.fields().indexFromName('meta_json')
-        idMetaJsize = self.catalog.fields().indexFromName('meta_jsize')
-        self.calculateMetadata = True
-        self.catalog.startEditing()
-        it = self.catalog.getFeatures( request )
-        item_id_no_set_assets = []
-        for feat in it:
-            if self.apiPL.access.isKill:
-                self.catalog.commitChanges()
-                self.hideProgressBar.emit()
-                self.message.emit( Qgis.Critical, 'Canceled by user', [] )
-                return
-            meta_json = json.loads( feat['meta_json'] )
-            self.apiPL.getAssetsStatus(meta_json['links']['assets'], self._responseFinished )
-            if self.response['isOk']:
-                assets_status = self.response['assets_status']
-            else:
-                item_id_no_set_assets.append( feat['item_id'] )
-                continue
-            if 'assets_status' in meta_json:
-                del meta_json['assets_status']
-            meta_json['assets_status'] = assets_status
-            featId = feat.id()
-            meta_json = json.dumps( meta_json )
-            self.catalog.changeAttributeValue( featId, idMetaJson, meta_json )
-            self.catalog.changeAttributeValue( featId, idMetaJsize, len( meta_json) )
-            countData += 1
-            self.processingFeatures.emit( countData, totalData, int( countData / totalData * 100) )
-        self.catalog.commitChanges()
-        self.calculateMetadata = False
-        total = len( item_id_no_set_assets )
-        if total > 0:
-            msg = "Error set assets(total {}).".format( total )
-            self.message.emit( Qgis.Critical, msg, item_id_no_set_assets )
-        else:
-            self.message.emit( Qgis.Success, 'Finished OK', [] )
-        self.hideProgressBar.emit()
-
-    def activeAssets(self):
-        def exitsActivate(meta_json):
-            return 'assets_status' in meta_json and \
-                   'a_analytic' in meta_json['assets_status'] and \
-                   'activate' in meta_json['assets_status']['a_analytic']
-
-
-        self.currentProcess.emit('Active assets')
-        self.apiPL.access.isKill = False
-        request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
-        request = request.setSubsetOfAttributes( ['meta_json','item_id'], self.catalog.fields() )
-        totalData = self.catalog.featureCount()
-        totalSelected = self.catalog.selectedFeatureCount()
-        if totalSelected > 0:
-            totalData = totalSelected
-            idxs = self.catalog.selectedFeatureIds()
-            request = request.setFilterFids( idxs )
-        self.showProgressBar.emit(False)
-        countData = 0
-        it = self.catalog.getFeatures( request )
-        item_id_no_assets_status = []
-        for feat in it:
-            if self.apiPL.access.isKill:
-                self.hideProgressBar.emit()
-                self.message.emit( Qgis.Critical, 'Canceled by user', [] )
-                return
-            meta_json = json.loads( feat['meta_json'] )
-            if not exitsActivate( meta_json ):
-                item_id_no_assets_status.append( feat['item_id'] )
-                continue
-            url = meta_json['assets_status']['a_analytic']['activate']
-            self.apiPL.requestUrl( url, self._responseFinished )
-            countData += 1
-            self.processingFeatures.emit( countData, totalData, int( countData / totalData * 100) )
-        total = len( item_id_no_assets_status )
-        if total > 0:
-            msg = "Missing ['assets_status']['a_analytic']['activate'] in metadata of features(total {}).".format( total )
-            self.message.emit( Qgis.Critical, msg, item_id_no_assets_status )
-        else:
-            self.message.emit( Qgis.Success, 'Finished OK', [] )
-        self.hideProgressBar.emit()
 
     def downloadImages(self):
         def getGroup(item_type):
@@ -877,31 +786,52 @@ class PlanetLabs(QObject):
             self.project.addMapLayer( layer, addToLegend=False )
             ltgDonwload.addLayer( layer ).setItemVisibilityChecked( False )
 
-        def saveImage(url, item_type, item_id, downloadDir):
-            @pyqtSlot(int, int)
-            def progressImage(bytesReceived, bytesTotal):
-                perc = int( bytesReceived / bytesTotal * 100)
-                if perc % self.limitPercentImage == 0:
-                    self.receivedBytesImage.emit( bytesReceived, bytesTotal, perc )
-            
-            fileName = "{}_{}.part".format( item_type, item_id )
-            self.currentImage.emit( fileName )
-            fileName = os.path.join( downloadDir, fileName )
-            self.imageDownload = QFile( fileName )
-            self.imageDownload.open( QIODevice.WriteOnly )
-            self.apiPL.saveImage( url, self._responseFinished, self.imageDownload.write, progressImage )
-            self.imageDownload.flush()
-            self.imageDownload.close()
-            if self.response['isOk']:
-                fileNameEnd = "{}.tif".format( fileName.rsplit('.')[0] )
-                self.imageDownload.rename( fileNameEnd )
+        def download(meta_json, item_type, item_id, fileName, downloadDir):
+            def saveImage(url, item_type, item_id, downloadDir):
+                @pyqtSlot(int, int)
+                def progressImage(bytesReceived, bytesTotal):
+                    perc = int( bytesReceived / bytesTotal * 100)
+                    if perc % self.limitPercentImage == 0:
+                        self.receivedBytesImage.emit( bytesReceived, bytesTotal, perc )
+                
+                fileName = "{}_{}.part".format( item_type, item_id )
+                self.currentImage.emit( fileName )
+                fileName = os.path.join( downloadDir, fileName )
+                self.imageDownload = QFile( fileName )
+                self.imageDownload.open( QIODevice.WriteOnly )
+                self.apiPL.saveImage( url, self._responseFinished, self.imageDownload.write, progressImage )
+                self.imageDownload.flush()
+                self.imageDownload.close()
+                if self.response['isOk']:
+                    fileNameEnd = "{}.tif".format( fileName.rsplit('.')[0] )
+                    self.imageDownload.rename( fileNameEnd )
+                else:
+                    self.imageDownload.remove()
+                del self.imageDownload
+                self.imageDownload = None
+                return self.response['isOk']
+
+            url = meta_json['assets_status']['a_analytic']['location']
+            if not saveImage( url, item_type, item_id, downloadDir):
+                item_id_error_download.append( item_id )
             else:
-                self.imageDownload.remove()
-                msg = "Error Download: {}".format( self.response['message'] )
-                self.message.emit( Qgis.Critical, msg, [] )
-            del self.imageDownload
-            self.imageDownload = None
-            return self.response['isOk']
+                addLayer( fileName, item_id )
+
+        def updateStatus(meta_json, featId):
+            self.apiPL.getAssetsStatus(meta_json['links']['assets'], self._responseFinished )
+            if self.response['isOk']:
+                del meta_json['assets_status']
+                meta_json['assets_status'] = self.response['assets_status']
+                str_meta_json = json.dumps( meta_json )
+                self.catalog.changeAttributeValue( featId, idMetaJson, str_meta_json )
+                self.catalog.changeAttributeValue( featId, idMetaJsize, len( str_meta_json) )
+                return meta_json
+            return None
+
+        def activeDownload(meta_json, featId):
+            url = meta_json['assets_status']['a_analytic']['activate']
+            self.apiPL.requestUrl( url, self._responseFinished )
+            updateStatus( meta_json, featId )
 
         self.currentProcess.emit('Download images')
         downloadDir = self.dockWidget.getDownloadDir()
@@ -923,9 +853,13 @@ class PlanetLabs(QObject):
             request = request.setFilterFids( idxs )
         self.showProgressBar.emit(True)
         countData = 0
+        idMetaJson = self.catalog.fields().indexFromName('meta_json')
+        idMetaJsize = self.catalog.fields().indexFromName('meta_jsize')
+        self.calculateMetadata = True
+        self.catalog.startEditing()
         it = self.catalog.getFeatures( request )
-        item_id_no_assets_status = []
-        item_id_no_active = []
+        item_id_no_credential = [] # 'status' = API_PlanetLabs.statusNoCredential
+        item_id_no_active = [] # 'status' = 'inactive' OR 'activating'
         item_id_error_download = []
         for feat in it:
             if self.apiPL.access.isKill:
@@ -943,35 +877,48 @@ class PlanetLabs(QObject):
                     addLayer( fileName, item_id )
                 continue
             meta_json = json.loads( feat['meta_json'] )
-            if not 'assets_status' in meta_json:
-                item_id_no_assets_status.append( item_id )
+            status = meta_json['assets_status']['a_analytic']['status']
+            if status == self.apiPL.statusNoCredential:
+                item_id_no_credential.append( item_id )
                 continue
-            assets_status = meta_json['assets_status']
-            if not assets_status['a_analytic']['status'] == 'active':
+            if status == 'active':
+                download( meta_json, item_type, item_id, fileName, downloadDir )
+                continue
+            meta_json = updateStatus( meta_json, feat.id() )
+            if meta_json is None:
                 item_id_no_active.append( item_id )
-                continue
-            url = assets_status['a_analytic']['location']
-            if not saveImage( url, item_type, item_id, downloadDir):
-                item_id_error_download.append( item_id )
-            else:
-                addLayer( fileName, item_id )
-
-        total = len( item_id_no_assets_status )
-        if total > 0:
-            msg = "Missing 'assets_status' in metadata of features(total {}).".format( total )
-            self.message.emit( Qgis.Critical, msg, item_id_no_assets_status )
+            status = meta_json['assets_status']['a_analytic']['status']
+            if status == 'active':
+                download( meta_json, item_type, item_id, fileName, downloadDir )
+            elif status == 'inactive':
+                item_id_no_active.append( item_id )
+                activeDownload( meta_json, feat.id() )
+            else : # 'activating'
+                item_id_no_active.append( item_id )
+        self.catalog.commitChanges()
+        self.calculateMetadata = False
+        if len( item_id_no_credential ) + len( item_id_no_active ) + len( item_id_error_download ) == 0:
+            self.message.emit( Qgis.Success, 'Finished OK', [] )
         else:
-            total = len( item_id_no_active )
-            if total > 0:
-                msg = "Status 'assets_status'.'a_analytic' is not 'active' in metadata of features(total {}).".format( total )
-                self.message.emit( Qgis.Critical, msg, item_id_no_active )
-            else:
-                total = len( item_id_error_download )
-                if total > 0:
-                    msg = "Error download images(total {}).".format( total )
-                    self.message.emit( Qgis.Critical, msg, item_id_error_download )
-                else:
-                    self.message.emit( Qgis.Success, 'Finished OK', [] )
+            lstErrormsg = []
+            lstCritical = []
+            if len( item_id_no_credential ) > 0:
+                d = { 'label': 'Items without credential', 'items': item_id_no_credential }
+                lstCritical.append( d )
+                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                lstErrormsg.append( msg )
+            if len( item_id_no_active ) > 0:
+                d = { 'label': 'Items no active', 'items': item_id_no_active }
+                lstCritical.append( d )
+                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                lstErrormsg.append( msg )
+            if len( item_id_error_download ) > 0:
+                d = { 'label': 'Items with error for download', 'items': item_id_error_download }
+                lstCritical.append( d )
+                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                lstErrormsg.append( msg )
+            msg = "Erros: {}".format( ','.join( lstErrormsg ) )
+            self.message.emit( Qgis.Critical, msg, lstCritical )
         self.hideProgressBar.emit()
 
     def populateForm(self, widgets, feature):
@@ -1045,14 +992,6 @@ class PlanetLabs(QObject):
             self.addXYZtiles()
             return { 'isOk': True }
 
-        def updateAssetsStatus(feature=None):
-            self.updateAssetsStatus()
-            return { 'isOk': True }
-
-        def activeAssets(feature=None):
-            self.activeAssets()
-            return { 'isOk': True }
-
         def downloadImages(feature=None):
             self.downloadImages()
             return { 'isOk': True }
@@ -1061,8 +1000,6 @@ class PlanetLabs(QObject):
             'highlight':   highlight,
             'zoom':        zoom,
             'addxyztiles': addXYZtiles,
-            'updateAssetsStatus': updateAssetsStatus,
-            'activeAssets': activeAssets,
             'downloadImages': downloadImages
         }
         if not nameAction in actionsFunc.keys():
@@ -1086,9 +1023,6 @@ class PlanetLabs(QObject):
             return json.loads( geom.asJson() )
         
         def getDateRangeFilter(dateGte, dateLte):
-            def getStringDate(date):
-                return "{}Z".format( QDateTime( date ).toString( Qt.ISODate ) )
-
             dtGte = QDateTime( dateGte )
             dtLte = QDateTime( dateLte )
             dtLte.setTime( QTime(23,59,59) )
@@ -1263,7 +1197,7 @@ class PlanetLabs(QObject):
         total = len( lstMissing )
         if total > 0:
             msg = "Missing mosaic(total {})".format( total )
-            self.message.emit( Qgis.Critical, msg, lstMissing )
+            self.message.emit( Qgis.Critical, msg, [ {'label': 'Missing mosaic', 'items': lstMissing } ] )
         else:
             self.message.emit( Qgis.Success, 'Finished OK', [] )
         self.changeButtonApply.emit('Add')

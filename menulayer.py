@@ -43,16 +43,6 @@ class MenuCatalogPlanet(QObject):
                 'action': None
             },
             {
-                'menu': u"Update assets status",
-                'slot': self.updateAssetsStatus,
-                'action': None
-            },
-            {
-                'menu': u"Active assets",
-                'slot': self.activeAssets,
-                'action': None
-            },
-            {
                 'menu': u"Download images",
                 'slot': self.downloadImages,
                 'action': None
@@ -78,14 +68,6 @@ class MenuCatalogPlanet(QObject):
     @pyqtSlot(bool)
     def addXYZtiles(self, checked):
         self.funcActions['addXYZtiles']()
-
-    @pyqtSlot(bool)
-    def updateAssetsStatus(self, checked):
-        self.funcActions['updateAssetsStatus']()
-
-    @pyqtSlot(bool)
-    def activeAssets(self, checked):
-        self.funcActions['activeAssets']()
 
     @pyqtSlot(bool)
     def downloadImages(self, checked):
