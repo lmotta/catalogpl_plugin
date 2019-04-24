@@ -33,6 +33,7 @@ class TreeWidgetMetadata(object):
     def __init__(self):
         super().__init__()
         self.clipboard = QApplication.clipboard()
+        self.messageHelp = "* Double click copy item to clipboard. Inside 'key' item = Expression, otherwise, value"
 
     def create(self, wgtTabMetadata, lblClip, name_exp_json, meta_json):
         """
@@ -89,11 +90,18 @@ class TreeWidgetMetadata(object):
                 keys.append( item.text(0) )
                 addKey( item.parent(), keys )
 
-            keys = []
-            addKey(item, keys)
-            exp = getExpression( keys)
             value = item.data( 1, Qt.DisplayRole )
-            msg = "{exp} | {value}".format( exp=exp, value=value )
+            if value is None:
+                msg = "Item need have Value"
+                lblClip.setText( msg )
+                lblClip.setStyleSheet('color: red')
+                return
+            if col == 0:
+                keys = []
+                addKey(item, keys)
+                msg = getExpression( keys)
+            else:
+                msg = str( value )
             self.clipboard.setText( msg )
             msg = "Copied to clipboard: {msg}".format( msg=msg )
             lblClip.setText( msg )
@@ -103,8 +111,12 @@ class TreeWidgetMetadata(object):
         tw = wgtTabMetadata.findChild( QTreeWidget, 'metadata')
         if tw is None:
             tw = QTreeWidget( wgtTabMetadata )
+            tw.setAutoScroll(False)
+            tw.setSelectionBehavior( tw.SelectItems )
             tw.setObjectName('metadata')
-            tw.header().hide()
+            header = tw.headerItem()
+            header.setText(0, 'Key')
+            header.setText(1, 'Value')
             tw.setColumnCount( cols )
             tw.itemDoubleClicked.connect( itemDoubleClicked )
             wgtTabMetadata.layout().addWidget( tw )

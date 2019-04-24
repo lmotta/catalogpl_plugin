@@ -965,8 +965,7 @@ class PlanetLabs(QObject):
 
         # Tab Metadata
         # Message 'message_clip'
-        msg = "* Double click for copy 'Expression item' in Clipboard"
-        widgets['message_clip'].setText( msg )
+        widgets['message_clip'].setText( self.wdgMetadata.messageHelp )
         self.wdgMetadata.create( widgets['tabMetadata'], widgets['message_clip'], 'meta_json', meta_json )
 
     def actionsForm(self, nameAction, feature_id=None):
