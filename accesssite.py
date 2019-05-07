@@ -174,7 +174,7 @@ class AccessSite(QObject):
             self.status_download.connect( paramsAccess['notResponseAllFinished']['progressPackageImage'] )     
         url = paramsAccess['url']
         if 'credential' in paramsAccess:
-            userInfo = "{user}:{pwd}".format( user=paramsAccess['credential']['user'], pwd=paramsAccess['credential']['password'] )
+            userInfo = f"{paramsAccess['credential']['user']}:{paramsAccess['credential']['password']}"
             url.setUserInfo( userInfo )
         self.isKill = False
         run()
@@ -186,7 +186,7 @@ class AccessSite(QObject):
                 return response
             else:
                 if response['errorCode'] == QNetworkReply.HostNotFoundError:
-                    response['message'] = "{}\nURL = {}".format( response['message'], self.urlGeoserver )
+                    response['message'] = f"{response['message']}\nURL = {self.urlGeoserver}"
                 else:
                     response['isOk'] = True
             return response

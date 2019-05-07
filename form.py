@@ -35,9 +35,9 @@ def getFunctionPopulateForm(pluginName):
     for name, obj in QgsUtils.plugins.items():
         plugins[ name ] = obj
     if not pluginName in plugins:
-        return { 'isOk': False, 'message': "Missing {name} Plugin.".format(name=pluginName) }
+        return { 'isOk': False, 'message': f"Missing {pluginName} Plugin." }
     if getInstanceInPlugin( plugins[ pluginName ] ) is None:
-        return { 'isOk': False, 'message': "Run the {name} Plugin.".format(name=pluginName) }
+        return { 'isOk': False, 'message': f"Run the {pluginName} Plugin." }
     return { 'isOk': True, 'function': getPopulateForm( plugins[ pluginName ] ) }
 
 populateForm = None
