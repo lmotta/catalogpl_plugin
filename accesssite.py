@@ -219,7 +219,7 @@ class AccessSite(QObject):
             data = data.data()
             if data is None:
                 return reply.errorString()
-            return str(data, encoding='utf-8')
+            return str(data, encoding='utf-8').rstrip('\n')
 
         if self.isKill:
             self._emitErrorCodeAttribute(10, reply )

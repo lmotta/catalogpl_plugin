@@ -1177,7 +1177,8 @@ class PlanetLabs(QObject):
             name = f"{year}_{month:02d}"
             self.apiPL.getUrlMonthly( year, month, self._responseFinished )
             if not self.response['isOk']:
-                lstMissing.append( name )
+                message = self.response['message']
+                lstMissing.append( f"{name}({message})" )
             else:
                 self.message.emit( Qgis.Info, name, [] )
                 addLayer( name, ltg )
