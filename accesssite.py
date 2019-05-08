@@ -212,11 +212,20 @@ class AccessSite(QObject):
 
     @pyqtSlot('QNetworkReply*')
     def replyFinished(self, reply) :
+        def getMessageErrorSite():
+            data = reply.readAll()
+            if data is None:
+                return reply.errorString()
+            data = data.data()
+            if data is None:
+                return reply.errorString()
+            return str(data, encoding='utf-8')
+
         if self.isKill:
             self._emitErrorCodeAttribute(10, reply )
             return
         if reply.error() != QNetworkReply.NoError:
-            response = { 'isOk': False, 'message': reply.errorString(), 'errorCode': reply.error() }
+            response = { 'isOk': False, 'message': getMessageErrorSite(), 'errorCode': reply.error() }
             self._closeReply( reply )
             self.finished.emit( response )
             return

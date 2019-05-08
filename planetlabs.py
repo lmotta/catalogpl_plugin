@@ -1161,22 +1161,11 @@ class PlanetLabs(QObject):
             self.message.emit( Qgis.Critical, message, [] )
             self.changeButtonApply.emit('Add')
 
-        def checkValidKey(vdate):
-            year, month = vdate.year(), vdate.month()
-            self.apiPL.getUrlMonthly( year, month, self._responseFinished )
-            if not self.response['isOk'] and self.response['errorCode'] == QNetworkReply.AuthenticationRequiredError:
-                return {'isOk': False, 'message': 'Insufficent credentials for this key' }
-            return {'isOk': True }
-
         self.currentProcess.emit('Add XYZ tiles mosaics')
         self.apiPL.access.isKill = False
         lstMissing = []
         vdate_ini = QDate( date1.year(),  date1.month(), 1 )
         vdate = QDate( date2.year(),  date2.month(), 1 )
-        r = checkValidKey( vdate )
-        if not r['isOk']:
-            outFunction( r['message'] )
-            return
         ltg = getGroup()
         ltg.setItemVisibilityChecked( False )
         while( vdate > vdate_ini.addMonths(-1) ):
@@ -1189,9 +1178,9 @@ class PlanetLabs(QObject):
             self.apiPL.getUrlMonthly( year, month, self._responseFinished )
             if not self.response['isOk']:
                 lstMissing.append( name )
-                continue
-            self.message.emit( Qgis.Info, name, [] )
-            addLayer( name, ltg )
+            else:
+                self.message.emit( Qgis.Info, name, [] )
+                addLayer( name, ltg )
             vdate = vdate.addMonths(-1)
         total = len( lstMissing )
         if total > 0:
