@@ -7,7 +7,7 @@ about:This plugin lets you get images from the Planet Labs API(Version 1), by pe
   This plugin will be create polygon layer (Catalog of images) from intersect with the extent of the map window.
   With this plugin, you can download full images(type analytic) and view the XYZ Tiles services(Montly mosaics and images).
 
-version:2.0
+version:2.1
 qgisMinimumVersion:3.4
 
 author:Luiz Motta
@@ -26,7 +26,9 @@ icon:planet.svg
 experimental:True
 deprecated:False
 
-changelog: 2.0(2019-03-19)
+changelog: 2.1(2019-11-27)
+  Added flash
+  - 2.0(2019-03-19)
   Migrated to QGIS 3.4
   - 1.7.1
   Fixed error ltgRoot in downloadImages(catalogpl.py).

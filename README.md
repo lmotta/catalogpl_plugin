@@ -17,6 +17,8 @@ With this plugin, you can download full images(type analytic) and view the XYZ T
 Luiz Motta
 
 ## Changelog
+- 2019-11-27
+Added flash
 - 2019-03-19
 Migrated to QGIS 3.4
 - 2017-12-20

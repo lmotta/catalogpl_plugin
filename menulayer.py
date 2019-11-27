@@ -148,14 +148,14 @@ class MenuXYZTiles(QObject):
         layer = QgsUtils.iface.activeLayer()
         wkt_geom = layer.customProperty('wkt_geom')
         geom = QgsGeometry.fromWkt( wkt_geom )
-        self.canvasEffects.zoom( layer, geom )
+        self.canvasEffects.zoom( [ geom ], layer )
 
     @pyqtSlot(bool)
     def highlight(self, checked):
         layer = QgsUtils.iface.activeLayer()
         wkt_geom = layer.customProperty('wkt_geom')
         geom = QgsGeometry.fromWkt( wkt_geom )
-        self.canvasEffects.highlight( layer, geom )
+        self.canvasEffects.flash( [ geom ], layer )
 
     @pyqtSlot(bool)
     def openForm(self, checked):

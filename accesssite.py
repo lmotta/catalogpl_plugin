@@ -186,7 +186,7 @@ class AccessSite(QObject):
                 return response
             else:
                 if response['errorCode'] == QNetworkReply.HostNotFoundError:
-                    response['message'] = "{}\nURL = {}".format( response['message'], self.urlGeoserver )
+                    response['message'] = "{}\nURL = {}".format( response['message'], url )
                 else:
                     response['isOk'] = True
             return response

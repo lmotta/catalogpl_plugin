@@ -979,12 +979,12 @@ class PlanetLabs(QObject):
         # Actions functions
         def highlight(feature_id):
             geom = self.catalog.getFeature( feature_id ).geometry()
-            self.mapCanvasGeom.highlight( self.catalog, geom )
+            self.mapCanvasGeom.flash( [ geom ], self.catalog )
             return { 'isOk': True }
 
         def zoom(feature):
             geom = self.catalog.getFeature( feature_id ).geometry()
-            self.mapCanvasGeom.zoom( self.catalog, geom )
+            self.mapCanvasGeom.zoom( [ geom ], self.catalog )
             return { 'isOk': True }
 
         def addXYZtiles(feature=None):
