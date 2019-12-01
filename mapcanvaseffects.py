@@ -24,31 +24,14 @@ __date__ = '2019-01-31'
 __copyright__ = '(C) 2019, Luiz Motta'
 __revision__ = '$Format:%H$'
 
-from qgis.PyQt.QtCore import QTimer
-from qgis.PyQt.QtGui import QColor
-
 from qgis import utils as QgsUtils
-from qgis.core import QgsProject, QgsCoordinateTransform, QgsFeature
-from qgis.gui import QgsHighlight, QgsRubberBand
+from qgis.core import QgsProject, QgsCoordinateTransform
 
 
 class  MapCanvasGeometry():
     def __init__(self):
         self.project = QgsProject().instance()
         self.canvas = QgsUtils.iface.mapCanvas()
-
-    def _flash(self, milliseconds):
-        def finished():
-            self.timer.stop()
-            self.timer.timeout.disconnect( finished )
-            if self.layer is None:
-                self.canvasItem.reset( self.geometryType )
-            self.canvasItem = None
-            self.layer = None
-            self.geometryType = None
-
-        self.timer.timeout.connect( finished )
-        self.timer.start( milliseconds )
 
     def flash(self, geometries, layer=None):
         if layer is None:
