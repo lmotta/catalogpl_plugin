@@ -83,7 +83,7 @@ class WidgetProgressBar(QWidget):
 
     @pyqtSlot(int, int, int)
     def processingCount(self, countData, totalData, percent):
-        msg = "{n}: {c}/{t} ( {p}% )".format( n=self.nameProcess, c=countData, t=totalData, p=percent )
+        msg = f"{self.nameProcess}: {countData}/{totalData} ( {percent}% )"
         self.pbCount.setValue(  percent )
         self.pbCount.setFormat( msg )
 
@@ -91,6 +91,6 @@ class WidgetProgressBar(QWidget):
     def receivedBytesFile(self, countData, totalData, percent):
         countData /= 1048576 # bytes -> MB
         totalData /= 1048576 # bytes -> MB
-        msg = "{n}: {c:.2f}/{t:.2f} MB ( {p}% )".format( n=self.nameFile,c=countData, t=totalData, p=percent )
+        msg = f"{self.nameFile}: {countData:.2f}/{totalData:.2f} MB ( {percent}% )"
         self.pbFile.setValue(  percent )
         self.pbFile.setFormat( msg )

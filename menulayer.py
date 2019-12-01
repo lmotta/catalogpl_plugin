@@ -121,17 +121,17 @@ class MenuXYZTiles(QObject):
         field_id = layer.customProperty('field_id')
         table = self.project.mapLayer( table_id )
         if table is None:
-            msg = "Layer used for create this image('{}') not found.".format( table_id )
+            msg = f"Layer used for create this image('{table_id}') not found."
             self.msgBar.pushWarning( self.menuName, msg )
             return None
         request = QgsFeatureRequest().setFlags( QgsFeatureRequest.NoGeometry)
         request = request.setSubsetOfAttributes( [ field_id['name'] ], table.fields() )
-        expr = '"{field}" = \'{value}\''.format( field=field_id['name'], value=field_id['value'] )
+        expr = f"\"{field_id['name']}\" = '{field_id['value']}'"
         request = request.setFilterExpression( expr )
         it = table.getFeatures( request )
         feat = QgsFeature()
         if not it.nextFeature( feat ):
-            msg = "Image '{}' not found in '{}'.".format( field_id['value'], table.name() )
+            msg = f"Image '{field_id['value']}' not found in '{table.name()}'."
             self.msgBar.pushWarning( self.menuName, msg )
             return None
         return {

@@ -160,7 +160,7 @@ class API_PlanetLabs(QObject):
                     dt = datetime.datetime.strptime( d, "%Y-%m-%dT%H:%M:%S.%f")
                     return dt.strftime( formatDateTime )
 
-                key = "a_{0}".format( asset )
+                key = f"a_{asset}"
                 response['assets_status'][ key ] = {}
                 r = response['assets_status'][ key ]
                 if not asset in data:
@@ -225,7 +225,7 @@ class API_PlanetLabs(QObject):
             return response
 
         url = self.urlYXZMosaicMonthly.format( year=year, month=month ).replace('%7Bz%7D/%7Bx%7D/%7By%7D','0/0/0')
-        url = "{url}?api_key={key}".format( url=url, key=self.validKey )
+        url = f"{url}?api_key={self.validKey}"
         p = { 'url': QUrl( url ) }
         self.access.requestUrl( p, addFinishedResponse, setFinished )
 
@@ -241,7 +241,7 @@ class API_PlanetLabs(QObject):
             return response
 
         url = self.urlYXZImage.format( item_type=item_type, item_id=item_id ).replace('%7Bz%7D/%7Bx%7D/%7By%7D','0/0/0')
-        url = "{url}?api_key={key}".format( url=url, key=self.validKey )
+        url = f"{url}?api_key={self.validKey}"
         p = { 'url': QUrl( url ) }
         self.access.requestUrl( p, addFinishedResponse, setFinished )
 

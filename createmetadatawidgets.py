@@ -45,10 +45,10 @@ class TreeWidgetMetadata(object):
         :meta_json: Value of JSON(dictionary) from name_exp_json
         """
         def getExpression(keys):
-            exp = "map_get( json_to_map( \"{name}\" ), '{key}' )".format( name=name_exp_json, key=keys[-1] )
+            exp = f"map_get( json_to_map( \"{name_exp_json}\" ), '{keys[-1]}' )"
             vStop = -1 * (1+len( keys ))
             for idx in range(-2, vStop, -1):
-                exp = "map_get( {exp}, '{key}' )".format( exp=exp, key=keys[ idx ] )
+                exp = f"map_get( {exp}, '{keys[ idx ]}' )"
             return exp
 
         def populate(treeWidget, jsonMetadataFeature):
@@ -103,7 +103,7 @@ class TreeWidgetMetadata(object):
             else:
                 msg = str( value )
             self.clipboard.setText( msg )
-            msg = "Copied to clipboard: {msg}".format( msg=msg )
+            msg = f"Copied to clipboard: {msg}"
             lblClip.setText( msg )
             lblClip.setStyleSheet('color: blue')
 

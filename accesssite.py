@@ -174,7 +174,7 @@ class AccessSite(QObject):
             self.status_download.connect( paramsAccess['notResponseAllFinished']['progressPackageImage'] )     
         url = paramsAccess['url']
         if 'credential' in paramsAccess:
-            userInfo = "{user}:{pwd}".format( user=paramsAccess['credential']['user'], pwd=paramsAccess['credential']['password'] )
+            userInfo = f"{paramsAccess['credential']['user']}:{paramsAccess['credential']['password']}"
             url.setUserInfo( userInfo )
         self.isKill = False
         run()
@@ -186,7 +186,7 @@ class AccessSite(QObject):
                 return response
             else:
                 if response['errorCode'] == QNetworkReply.HostNotFoundError:
-                    response['message'] = "{}\nURL = {}".format( response['message'], url )
+                    response['message'] = f"{response['message']}\nURL = {self.urlGeoserver}"
                 else:
                     response['isOk'] = True
             return response
@@ -212,11 +212,20 @@ class AccessSite(QObject):
 
     @pyqtSlot('QNetworkReply*')
     def replyFinished(self, reply) :
+        def getMessageErrorSite():
+            data = reply.readAll()
+            if data is None:
+                return reply.errorString()
+            data = data.data()
+            if data is None:
+                return reply.errorString()
+            return str(data, encoding='utf-8').rstrip('\n')
+
         if self.isKill:
             self._emitErrorCodeAttribute(10, reply )
             return
         if reply.error() != QNetworkReply.NoError:
-            response = { 'isOk': False, 'message': reply.errorString(), 'errorCode': reply.error() }
+            response = { 'isOk': False, 'message': getMessageErrorSite(), 'errorCode': reply.error() }
             self._closeReply( reply )
             self.finished.emit( response )
             return

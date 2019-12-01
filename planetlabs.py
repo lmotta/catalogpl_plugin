@@ -77,7 +77,7 @@ class DockWidgetPlanetLabs(QDockWidget):
         def setupUi():
             def createRadioButton(name, layout, parent):
                 w = QRadioButton( name, parent )
-                w.setObjectName( "obj{}".format( name) )
+                w.setObjectName( f"obj{name}" )
                 layout.addWidget( w )
 
             def createDateEdit(name, objectName, layout, displayFormat, hasCalendar, parent):
@@ -107,7 +107,7 @@ class DockWidgetPlanetLabs(QDockWidget):
 
                 lytDates = QHBoxLayout()
                 for name in ('From', 'To'):
-                    objectName = "obj{}Image".format( name) 
+                    objectName = f"obj{name}Image"
                     createDateEdit( name, objectName, lytDates, 'yyyy-MM-dd', True, wgtPage )
                 lytPage.addLayout( lytDates )
 
@@ -135,7 +135,7 @@ class DockWidgetPlanetLabs(QDockWidget):
 
                 lyt = QHBoxLayout()
                 for name in ('From', 'To'):
-                    objectName = "obj{}Mosaic".format( name) 
+                    objectName = f"obj{name}Mosaic"
                     createDateEdit( name, objectName, lyt, 'yyyy-MM', False, wgtPage )
                 lytPage.addLayout( lyt )
 
@@ -228,7 +228,7 @@ class DockWidgetPlanetLabs(QDockWidget):
 
         def populateUi(paramsSetting):
             # Page Images
-            assets = 'objPlanet' if paramsSetting['assets'] is None else "obj{}".format( paramsSetting['assets'] )
+            assets = 'objPlanet' if paramsSetting['assets'] is None else f"obj{paramsSetting['assets']}"
             w = self.findChild( QRadioButton, assets )
             w.setChecked( True )
             if not paramsSetting['path'] is None:
@@ -272,7 +272,7 @@ class DockWidgetPlanetLabs(QDockWidget):
             self.msgBar.pushInfo('Planet server', 'Checking server...')
             r = self.pl.checkServer( key )
             if not r['live']:
-                msg = "'Check server Planet:{}".format( r['message'] )
+                msg = f"'Check server Planet:{r['message']}"
                 self.msgBar.clearWidgets()
                 self.msgBar.pushMessage( msg, Qgis.Critical, 0 )
                 for name in ('objPageImage', 'objPageMosaic', 'objPageKey'):
@@ -316,7 +316,7 @@ class DockWidgetPlanetLabs(QDockWidget):
         setupUi()
         self.wgtProgressBar.hide()
         self.nameOptionsKey = ('Copy clipboard', 'Clean register')
-        ojbNamesKey = [ "obj{}".format( k ) for k in self.nameOptionsKey ] + ['objButtonKey']
+        ojbNamesKey = [ f"obj{k}" for k in self.nameOptionsKey ] + ['objButtonKey']
         self.pageKey = { # Define in setupUi()
             'login': ('objKey', 'objPasswordEdit', 'objRegister', 'objButtonLogin'),
             'key': ojbNamesKey
@@ -340,7 +340,7 @@ class DockWidgetPlanetLabs(QDockWidget):
     def _getValues(self):
         def getOptionRadioButton(names):
             for k in names:
-                name = "obj{}".format( k )
+                name = f"obj{k}"
                 w = self.findChild( QRadioButton, name )
                 if w.isChecked():
                     return k
@@ -546,7 +546,7 @@ class DockWidgetPlanetLabs(QDockWidget):
         if len( itemsLog ) > 0:
             itemsMsg = []
             for item in itemsLog:
-                msg = "{}: {}".format( item['label'], ','.join( item['items'] ) )
+                msg = f"{item['label']}: {','.join( item['items'] )}"
                 itemsMsg.append( msg )
             msg = '\n'.join( itemsMsg )
             QgsMessageLog.logMessage( msg, self.titleLog, Qgis.Warning )
@@ -554,7 +554,7 @@ class DockWidgetPlanetLabs(QDockWidget):
     @pyqtSlot()
     def requestBulkFeatures(self):
         self.msgBar.clearWidgets()
-        msg = "{}: Request a bulk features...".format( self.currentProcess )
+        msg = f"{self.currentProcess}: Request a bulk features..."
         self.msgBar.pushMessage( msg, Qgis.Info, 0 )
 
     @pyqtSlot()
@@ -565,7 +565,7 @@ class DockWidgetPlanetLabs(QDockWidget):
     def receivedFeature(self, item_id):
         self.msgBar.clearWidgets()
         self.countFeatures += 1
-        msg = "{}: Received feature '{}'(Total {})".format( self.currentProcess, item_id, self.countFeatures )
+        msg = f"{self.currentProcess}: Received feature '{item_id}'(Total {self.countFeatures})"
         self.msgBar.pushMessage( msg, Qgis.Info, 0 )
 
     @pyqtSlot(bool)
@@ -667,8 +667,8 @@ class PlanetLabs(QObject):
         self.catalog.setCustomProperty('date2', date2 )
 
     def _createCatalog(self, item_type, date1, date2):
-        l_fields = [ "field={key}:{value}".format( key=k, value=self.apiPL.fieldsDef[ k ] ) for k in self.apiPL.fields ]
-        l_fields.insert( 0, "Multipolygon?crs={}".format( self.crsCatalog.authid().lower() ) )
+        l_fields = [ f"field={k}:{self.apiPL.fieldsDef[ k ]}" for k in self.apiPL.fields ]
+        l_fields.insert( 0, f"Multipolygon?crs={self.crsCatalog.authid().lower()}" )
         l_fields.append( "index=yes" )
         uri = '&'.join( l_fields )
         arg = ( item_type, date1, date2 )
@@ -704,7 +704,7 @@ class PlanetLabs(QObject):
         
         def getXYZTiles(item_type, item_id):
             url = self.apiPL.urlYXZImage.format( item_type=item_type, item_id=item_id )
-            return "type=xyz&url={url}&username={username}&zmax=19&zmin=0".format( url=url, username=self.apiPL.validKey )
+            return f"type=xyz&url={url}&username={self.apiPL.validKey}&zmax=19&zmin=0"
 
         self.currentProcess.emit('Add XYZ tiles images')
         self.apiPL.access.isKill = False
@@ -750,13 +750,13 @@ class PlanetLabs(QObject):
         self.hideProgressBar.emit()
         total = len( lstInvalidKey )
         if total == totalData:
-            msg = "{message}({total}).".format( message=messageInvalidKey,  total=total )
+            msg = f"{messageInvalidKey}({total})."
             self.message.emit( Qgis.Critical, msg, [ {'label': messageInvalidKey, 'items': lstInvalidKey } ] )
             return
         ltg = getGroup()
         ltg.setItemVisibilityChecked( False )
         for date in sorted( dates, reverse=True ):
-            name = "{}(Total {})".format( date, len( dates[ date ] ) )
+            name = f"{date}(Total {len( dates[ date ] )})"
             ltgDate = ltg.addGroup( name )
             ltgDate.setItemVisibilityChecked( False )
             ltgDate.setExpanded(False)
@@ -764,14 +764,14 @@ class PlanetLabs(QObject):
                 ltgDate.addLayer( layer )
                 ltgDate.setItemVisibilityChecked( False )
         if total > 0:
-            msg = "{message}(total = {total}).".format( message=messageInvalidKey,  total=total )
+            msg = f"{messageInvalidKey}(total = {total})."
             self.message.emit( Qgis.Warning, msg, [ {'label': messageInvalidKey, 'items': lstInvalidKey } ] )
         else:
             self.message.emit( Qgis.Success, 'Finished OK', [] )
 
     def downloadImages(self):
         def getGroup(item_type):
-            name = "Download_{}".format( item_type )
+            name = f"Download_{item_type}"
             ltg = self.layerTreeRoot.findGroup( name )
             if ltg is None:
                 ltg = self.layerTreeRoot.addGroup( name )
@@ -794,7 +794,7 @@ class PlanetLabs(QObject):
                     if perc % self.limitPercentImage == 0:
                         self.receivedBytesImage.emit( bytesReceived, bytesTotal, perc )
                 
-                fileName = "{}_{}.part".format( item_type, item_id )
+                fileName = f"{item_type}_{item_id}.part"
                 self.currentImage.emit( fileName )
                 fileName = os.path.join( downloadDir, fileName )
                 self.imageDownload = QFile( fileName )
@@ -803,7 +803,7 @@ class PlanetLabs(QObject):
                 self.imageDownload.flush()
                 self.imageDownload.close()
                 if self.response['isOk']:
-                    fileNameEnd = "{}.tif".format( fileName.rsplit('.')[0] )
+                    fileNameEnd = f"{fileName.rsplit('.')[0]}.tif"
                     self.imageDownload.rename( fileNameEnd )
                 else:
                     self.imageDownload.remove()
@@ -869,7 +869,7 @@ class PlanetLabs(QObject):
             countData += 1
             self.processingFeatures.emit( countData, totalData, int( countData / totalData * 100) )
             item_id = feat['item_id']
-            fileName = "{}_{}.tif".format( item_type, item_id )
+            fileName = f"{item_type}_{item_id}.tif"
             fileName = os.path.join( downloadDir, fileName )
             info = QFileInfo( fileName )
             if info.exists():
@@ -905,19 +905,19 @@ class PlanetLabs(QObject):
             if len( item_id_no_credential ) > 0:
                 d = { 'label': 'Items without credential', 'items': item_id_no_credential }
                 lstCritical.append( d )
-                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                msg = f"{d['label']}({len( d['items'])})"
                 lstErrormsg.append( msg )
             if len( item_id_no_active ) > 0:
                 d = { 'label': 'Items no active', 'items': item_id_no_active }
                 lstCritical.append( d )
-                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                msg = f"{d['label']}({len( d['items'] )})"
                 lstErrormsg.append( msg )
             if len( item_id_error_download ) > 0:
                 d = { 'label': 'Items with error for download', 'items': item_id_error_download }
                 lstCritical.append( d )
-                msg = "{}({})".format( d['label'], len( d['items'] ) )
+                msg = f"{d['label']}({len( d['items'] )})"
                 lstErrormsg.append( msg )
-            msg = "Erros: {}".format( ','.join( lstErrormsg ) )
+            msg = f"Erros: {','.join( lstErrormsg )}"
             self.message.emit( Qgis.Critical, msg, lstCritical )
         self.hideProgressBar.emit()
 
@@ -960,7 +960,7 @@ class PlanetLabs(QObject):
         # Populate 'thumbnail'
         meta_json = json.loads( feature['meta_json'] )
         widgets['message_status'].setText("Fetching thumbnail...")
-        url = "{url}?api_key={key}".format(url=meta_json['links']['thumbnail'], key=self.apiPL.validKey )
+        url = f"{meta_json['links']['thumbnail']}?api_key={self.apiPL.validKey}"
         self.apiPL.getThumbnail( url, finishedThumbnail )
 
         # Tab Metadata
@@ -1002,7 +1002,7 @@ class PlanetLabs(QObject):
             'downloadImages': downloadImages
         }
         if not nameAction in actionsFunc.keys():
-            return { 'isOk': False, 'message': "Missing action '{}'".format( nameAction ) }
+            return { 'isOk': False, 'message': f"Missing action '{nameAction}'" }
         return actionsFunc[ nameAction ]( feature_id )
 
     def requestHostLive(self):
@@ -1026,8 +1026,8 @@ class PlanetLabs(QObject):
             dtLte = QDateTime( dateLte )
             dtLte.setTime( QTime(23,59,59) )
             return  {
-                "gte": "{}Z".format( dtGte.toString( Qt.ISODate ) ),
-                "lte": "{}Z".format( dtLte.toString( Qt.ISODate ) )
+                "gte": f"{dtGte.toString( Qt.ISODate )}Z",
+                "lte": f"{dtLte.toString( Qt.ISODate )}Z"
             }
 
         def finished(response):
@@ -1085,7 +1085,7 @@ class PlanetLabs(QObject):
         else:
             arg = ( item_type, d1, d2 )
             name = self.formatCatalogName.format( *arg )
-            name = "Receiving... - {}".format( name )
+            name = f"Receiving... - {name}"
             self.catalog.setName( name )
             self._setPropertyCatalog( item_type, d1, d2 )
             self.catalog.dataProvider().truncate() # Delete all features
@@ -1142,7 +1142,7 @@ class PlanetLabs(QObject):
         def getGroup():
             y1, m1 = date1.year(), date1.month()
             y2, m2 = date2.year(), date2.month()
-            name = "Mosaic {year1}_{month1:02d}...{year2}_{month2:02d}".format( year1=y1, month1=m1, year2=y2, month2=m2 )
+            name = f"Mosaic {y1}_{m1:02d}...{y2}_{m2:02d}"
             ltg = self.layerTreeRoot.findGroup( name )
             if ltg is None:
                 ltg = self.layerTreeRoot.addGroup( name )
@@ -1152,7 +1152,7 @@ class PlanetLabs(QObject):
 
         def addLayer(name, group):
             url = self.response['url']
-            url = "type=xyz&url={url}&username={username}&zmax=19&zmin=0".format( url=url, username=self.apiPL.validKey )
+            url = f"type=xyz&url={url}&username={self.apiPL.validKey}&zmax=19&zmin=0"
             layer = QgsRasterLayer( url, name, 'wms')
             self.project.addMapLayer( layer, addToLegend=False )
             group.addLayer( layer ).setItemVisibilityChecked( False )
@@ -1161,22 +1161,11 @@ class PlanetLabs(QObject):
             self.message.emit( Qgis.Critical, message, [] )
             self.changeButtonApply.emit('Add')
 
-        def checkValidKey(vdate):
-            year, month = vdate.year(), vdate.month()
-            self.apiPL.getUrlMonthly( year, month, self._responseFinished )
-            if not self.response['isOk'] and self.response['errorCode'] == QNetworkReply.AuthenticationRequiredError:
-                return {'isOk': False, 'message': 'Insufficent credentials for this key' }
-            return {'isOk': True }
-
         self.currentProcess.emit('Add XYZ tiles mosaics')
         self.apiPL.access.isKill = False
         lstMissing = []
         vdate_ini = QDate( date1.year(),  date1.month(), 1 )
         vdate = QDate( date2.year(),  date2.month(), 1 )
-        r = checkValidKey( vdate )
-        if not r['isOk']:
-            outFunction( r['message'] )
-            return
         ltg = getGroup()
         ltg.setItemVisibilityChecked( False )
         while( vdate > vdate_ini.addMonths(-1) ):
@@ -1185,17 +1174,18 @@ class PlanetLabs(QObject):
                 outFunction('Canceled by user')
                 return
             year, month = vdate.year(), vdate.month()
-            name = "{year}_{month:02d}".format( year=year, month=month )
+            name = f"{year}_{month:02d}"
             self.apiPL.getUrlMonthly( year, month, self._responseFinished )
             if not self.response['isOk']:
-                lstMissing.append( name )
-                continue
-            self.message.emit( Qgis.Info, name, [] )
-            addLayer( name, ltg )
+                message = self.response['message']
+                lstMissing.append( f"{name}({message})" )
+            else:
+                self.message.emit( Qgis.Info, name, [] )
+                addLayer( name, ltg )
             vdate = vdate.addMonths(-1)
         total = len( lstMissing )
         if total > 0:
-            msg = "Missing mosaic(total {})".format( total )
+            msg = f"Missing mosaic(total {total})"
             self.message.emit( Qgis.Critical, msg, [ {'label': 'Missing mosaic', 'items': lstMissing } ] )
         else:
             self.message.emit( Qgis.Success, 'Finished OK', [] )
@@ -1236,9 +1226,9 @@ class PlanetLabs(QObject):
             html += "<ul>"
             for key, val in sorted( value.items() ):
                 if not isinstance( val, dict ):
-                    html += "<li>{key}: {value}</li> ".format(key=key, value=val)
+                    html += f"<li>{key}: {val}</li> "
                 else:
-                    html += "<li>{key}</li> ".format(key=key)
+                    html += f"<li>{key}</li> "
                 html = API_PlanetLabs.getHtmlTreeMetadata( val, html )
             html += "</ul>"
             return html
